@@ -21,6 +21,7 @@ docs/images.md
 docs/validation.md
 gpu/Dockerfile
 gpu/Dockerfile.core
+gpu/Dockerfile.select
 gpu/apply-public-patches.py
 gpu/assets/image-profile.json
 gpu/assets/model_storage.py

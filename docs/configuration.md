@@ -8,7 +8,7 @@ runtime data are separate.
 | Variable | Default | Purpose |
 |---|---|---|
 | `LEAM_VID_IMAGE` | unset | Your published image, preferably `registry/repo@sha256:digest`; Create refuses when unset. |
-| `LEAM_VID_MODELS` | all four supported IDs | Comma-separated supported subset; must match your image selection. |
+| `LEAM_VID_MODELS` | `turbowan,h3` | Comma-separated supported subset; must match your image selection. |
 | `LEAM_VID_DISK_GB` | `120` | Rental disk allocation, included in displayed storage pricing. |
 | `LEAM_VID_DATA_DIR` | `~/.local/share/leam-vid` | Private rental identity/configuration; not a video archive. |
 | `LEAM_VID_SSH_IDENTITY` | `~/.ssh/leam-vid` | Private SSH key; matching `.pub` is attached to an explicit rental. |

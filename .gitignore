@@ -21,3 +21,4 @@ cloud.json
 /outputs/
 /backups/
 /artifacts/
+/.worktrees/

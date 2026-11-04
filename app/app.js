@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const promptInput = $('prompt'), button = $('generate');
 const JOBS_KEY = 'leam-vid-jobs-v1';
-const DEFAULT_MODEL = 'fasth3_v2';
+const DEFAULT_MODEL = 'turbowan';
 const MODEL_NAMES = {
   fasth3_v2:'FastH3 V2 NVFP4',
   fasth3_trim:'FastH3 Trim NVFP4', turbowan:'TurboWan 2.1 1.3B', h3:'MiniMax H3 Turbo',
@@ -68,7 +68,10 @@ function syncModelCatalog() {
   if (signature === catalogSignature) return;
   catalogSignature = signature; MODELS = next;
   const previous = $('model').value;
-  for (const option of $('model').options) option.disabled = !MODELS[option.value];
+  $('model').replaceChildren(...Object.entries(MODELS).map(([id, item]) => {
+    const option = document.createElement('option'); option.value = id; option.textContent = item.label; return option;
+  }));
+  $('model').value = previous;
   if (!MODELS[previous]) $('model').value = MODELS[DEFAULT_MODEL] ? DEFAULT_MODEL : Object.keys(MODEL_NAMES).find(id => MODELS[id]) || '';
   modelSettings();
   if ($('model').value !== previous) { available = false; refreshReadiness(); }
@@ -288,7 +291,7 @@ async function refreshJob(job) {
   const session = sessionFor(job); if (session.refreshing || posting && job.state === 'posting') return;
   session.refreshing = true;
   try {
-    const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}?model=${encodeURIComponent(job.config && job.config.model || 'fasth3_v2')}`, {cache:'no-store'});
+    const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}?model=${encodeURIComponent(job.config && job.config.model || DEFAULT_MODEL)}`, {cache:'no-store'});
     if (!response.ok) throw new Error('Connection unavailable');
     const data = await response.json(); if (!currentJob(job)) return;
     if (data.state === 'unknown' && TERMINAL.has(job.state)) {

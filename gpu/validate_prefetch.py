@@ -63,6 +63,15 @@ class Prefetch(unittest.TestCase):
  def run_initial(self,bg=None):
   with redirect_stdout(io.StringIO()):(bg or self.bg).main()
  def marker(self):return self.root/'initial-prefetch-native-v1.complete'
+ def test_two_model_default_is_sequential(self):
+  self.manifest['models']={key:self.manifest['models'][key] for key in ['h3','turbowan']}
+  self.configure(self.bg)
+  Handler.owners['shared.bin']='h3'
+  self.run_initial()
+  self.assertEqual(list(dict.fromkeys(Handler.events)),['turbowan','h3'])
+  self.assertFalse(Handler.overlap)
+  self.assertTrue((self.root/'initial-prefetch-native-v1.complete').exists())
+
  def test_actual_http_models_are_sequential_smallest_first(self):
   self.run_initial();groups=[]
   for owner in Handler.events:

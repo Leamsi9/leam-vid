@@ -54,7 +54,9 @@ def main():
     parser.add_argument('--comfy-dir', type=Path, default=Path('/workspace/wan-cloud/ComfyUI'))
     parser.add_argument('fixtures', nargs='*', type=Path)
     args = parser.parse_args()
-    paths = args.fixtures or sorted((Path(__file__).parent / 'workflows').glob('*.json'))
+    examples = Path('/opt/private-video/examples')
+    if not examples.is_dir(): examples = Path(__file__).parent / 'workflows'
+    paths = args.fixtures or sorted(examples.glob('*.json'))
     if not paths:
         parser.error('No public API graph fixtures found')
     os.environ.update(CUDA_VISIBLE_DEVICES='', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1',

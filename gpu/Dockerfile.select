@@ -1,0 +1,9 @@
+# Selection-only derivative: reuse a prebuilt leam-vid runtime and its exact ABI.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+RUN test -f /workspace/wan-cloud/native-image-v1.installed
+COPY assets/runtime-models.json assets/image-profile.json /workspace/wan-assets/
+COPY assets/private-video-nodes.py /workspace/wan-assets/private-video-nodes.py
+RUN cp /workspace/wan-assets/private-video-nodes.py /workspace/wan-cloud/ComfyUI/custom_nodes/PrivateVideoRuntime/__init__.py && rm -f /opt/private-video/examples/*.json
+COPY workflows/ /opt/private-video/examples/
+LABEL org.opencontainers.image.title="leam-vid selected-model GPU runtime"

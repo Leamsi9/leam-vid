@@ -17,7 +17,8 @@ def selected_manifest(manifest, selected):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--image', required=True, help='Your Docker image reference, e.g. registry.example/user/leam-vid:v1')
-    parser.add_argument('--models', default='turbowan,fasth3_trim,fasth3_v2,h3')
+    parser.add_argument('--models', default='turbowan,h3')
+    parser.add_argument('--base-image', help='Optional compatible, already-built leam-vid image reference for a small selection-only derivative.')
     parser.add_argument('--print-commands', action='store_true')
     args = parser.parse_args()
     if any(character.isspace() for character in args.image) or args.image.startswith('-') or '@' in args.image:
@@ -30,6 +31,8 @@ def main():
         ['docker','build','-f','Dockerfile.core','-t',core,'.'],
         ['docker','build','--build-arg','CORE_IMAGE='+core,'--build-arg','TURBO_IMAGE='+turbo,'-t',args.image,'.'],
     ]
+    if args.base_image:
+        commands = [['docker','build','-f','Dockerfile.select','--build-arg','BASE_IMAGE='+args.base_image,'-t',args.image,'.']]
     unique = {item['key']: item['size'] for model in manifest['models'].values() for item in model['files']}
     print(json.dumps({'models': selected, 'unique_weight_bytes':sum(unique.values()), 'image':args.image, 'commands':commands},indent=2),flush=True)
     if args.print_commands: return

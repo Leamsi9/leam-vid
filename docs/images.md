@@ -9,7 +9,7 @@ validating the kernels, not merely changing the rental search string.
 ```sh
 python3 scripts/build-image.py \
   --image docker.io/YOUR_USER/leam-vid:v1 \
-  --models turbowan,fasth3_trim,fasth3_v2,h3
+  --models turbowan,h3
 ```
 
 The helper makes a temporary source-only build context and:
@@ -34,8 +34,22 @@ same subset in `LEAM_VID_MODELS`. Downloads remain smallest-first among enabled
 models; identical content hashes share one stored blob. The selected set's
 unique weight bytes are printed before building. Allow additional capacity for
 the software, partial downloads, scratch space and outputs. The default120GB
-allocation fits all four sets; smaller subsets can use a lower explicitly
+allocation fits all four sets; the default selection is TurboWan plus H3, smaller subsets can use a lower explicitly
 configured allocation after accounting for that overhead.
+
+To change a selection without recompiling the same software, use a compatible
+published leam-vid base, preferably pinned by registry digest:
+
+```sh
+python3 scripts/build-image.py --image registry.example/YOUR_USER/leam-vid:v2 \
+  --base-image registry.example/YOUR_USER/leam-vid@sha256:BASE_DIGEST \
+  --models turbowan,h3
+```
+
+This replaces only model manifests, public examples and the manifest-derived
+model selector. It adds no weights and changes no installed dependency versions.
+It is for this runtime family, not arbitrary third-party base images. Revalidate
+the resulting image and do not enable models absent from the underlying runtime.
 
 ## Publish to your registry
 

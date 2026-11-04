@@ -4,9 +4,9 @@ A private video studio for an on-demand RTX 5090 on Vast.ai. The laptop runs a
 small Python web app; the rented GPU runs ComfyUI. A phone can use the same app
 through a private HTTPS connection such as Tailscale Serve.
 
-- FastH3 V2 and Trim: native eight-step Comfy workflows, optional sound.
-- H3 Turbo: the retained four-step 768p comparison workflow.
-- TurboWan 2.1 1.3B: four-step silent 480p drafts with pinned official kernels.
+- H3 Turbo: the four-step 768p comparison workflow with optional sound.
+- TurboWan 2.1 1.3B: the default, four-step silent 480p drafts with pinned official kernels.
+- FastH3 V2 and Trim remain explicit source-build options, excluded from defaults.
 - Queue and batch jobs, view real progress, reuse a video's prompt, and manage
   videos, downloaded models, GPU lifecycle and Vast credit.
 
@@ -54,18 +54,23 @@ contains no account configuration, model weights, private prompts or media.
 ## Startup and model selection
 
 The GPU image contains all software; there is no `apt` or `pip` installation at
-rental startup. Comfy starts independently of model downloads. Selected models
-prepare sequentially from smallest to largest: TurboWan, Trim, V2, then H3.
+rental startup. Comfy starts independently of model downloads. The default models
+prepare sequentially: TurboWan first, then H3 Turbo. Explicitly enabled V2/Trim
+join the same smallest-first sequence.
 Three artifacts within one model may download concurrently. The queue skips
 models still preparing and runs the oldest runnable request without changing
 skipped jobs' original order. Installed-model notices appear while the app is
 open; browser notifications use existing permission only.
 
-The four model sets share files and occupy **75,889,749,265 unique bytes**. The
+The default two model sets occupy **50,382,663,429 unique bytes**, about 34%
+less than all four sets (75,889,749,265 bytes). TurboWan alone needs
+13,339,261,258 bytes. The
 default disk allocation is 120GB. Weights download on first boot, with resumable
 transfers, pinned revisions and SHA256 verification. Later boots reuse them;
 models explicitly removed after initial setup download again only if requested.
-A first video still needs model loading and may compile GPU kernels; no fixed
+Software image pull, network speed and first model load also take time. Keeping
+only TurboWan does not guarantee five-minute cold readiness. A first video
+still needs model loading and may compile GPU kernels; no fixed
 GPU timing is promised. “Installed” is not a generation benchmark.
 
 ## Validation and limits

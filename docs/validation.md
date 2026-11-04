@@ -17,7 +17,7 @@ placeholder input, tiny temporary local HTTP files and in-memory boundaries.
 They do not rent a GPU or submit inference.
 
 After building an image, run its real Comfy input validator without GPU access
-or networking. These examples assume all four models were enabled:
+or networking. The validator uses the selected public workflow examples baked into the image:
 
 ```sh
 docker run --rm --network none --entrypoint /opt/conda/bin/python \
@@ -33,7 +33,8 @@ docker run --rm --network none --entrypoint /opt/conda/bin/python \
   /validation/validate_media_io.py
 ```
 
-For a subset image pass only matching fixture paths to `validate_native.py`.
+The selected model subset is detected from the image examples; explicit fixture
+paths can also be passed to `validate_native.py`.
 Additional scripts check actual Turbo imports/bindings and SSH/compiler access.
 `validate_turbowan_tokenizer.py` requires the small public tokenizer files at
 its documented path; it does not load model weights. CPU startup can be checked

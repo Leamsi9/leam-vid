@@ -1,5 +1,5 @@
 """Supported local video runtimes; no user prompts or model execution state."""
-DEFAULT_MODEL = 'fasth3_v2'
+DEFAULT_MODEL = 'turbowan'
 MODELS = [
     {'id': 'fasth3_v2', 'name': 'FastH3 V2 NVFP4', 'label': 'FastH3 V2 · 8 steps',
      'durations': [5, 10], 'sizes': [[832, 480], [1344, 768]], 'default_width': 832, 'default_height': 480,
@@ -22,7 +22,7 @@ MODEL_BY_ID = {model['id']: model for model in MODELS}
 
 # The image and launcher use the same supported-model subset.
 import os
-_selected = tuple(filter(None, (value.strip() for value in os.environ.get('LEAM_VID_MODELS', ','.join(MODEL_BY_ID)).split(','))))
+_selected = tuple(filter(None, (value.strip() for value in os.environ.get('LEAM_VID_MODELS', 'turbowan,h3').split(','))))
 if not _selected or len(set(_selected)) != len(_selected) or any(value not in MODEL_BY_ID for value in _selected):
     raise ValueError('LEAM_VID_MODELS contains an unsupported or duplicate model.')
 MODELS = [MODEL_BY_ID[value] for value in _selected]

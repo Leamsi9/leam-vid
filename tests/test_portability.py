@@ -18,6 +18,10 @@ spec=importlib.util.spec_from_file_location('build_image',ROOT/'scripts/build-im
 build=importlib.util.module_from_spec(spec);spec.loader.exec_module(build)
 
 class Portable(unittest.TestCase):
+    def test_default_catalog_only_uses_requested_models(self):
+        self.assertEqual(list(server.MODEL_BY_ID),['turbowan','h3'])
+        self.assertEqual(server.DEFAULT_MODEL,'turbowan')
+
     def test_supported_subset_deduplicates_shared_files(self):
         manifest=json.loads((ROOT/'gpu/assets/runtime-models.json').read_text())
         selected=build.selected_manifest(manifest,['fasth3_trim','h3'])
@@ -29,9 +33,9 @@ class Portable(unittest.TestCase):
             with self.assertRaises(ValueError):build.selected_manifest(manifest,invalid)
 
     def test_subset_catalog_has_working_default(self):
-        env={**os.environ,'PYTHONPATH':str(ROOT/'app'),'LEAM_VID_MODELS':'h3,turbowan'}
+        env={**os.environ,'PYTHONPATH':str(ROOT/'app'),'LEAM_VID_MODELS':'h3'}
         data=json.loads(subprocess.check_output([sys.executable,'-c','import json,model_catalog as m; print(json.dumps([m.DEFAULT_MODEL,list(m.MODEL_BY_ID)]))'],env=env,text=True))
-        self.assertEqual(data,['h3',['h3','turbowan']])
+        self.assertEqual(data,['h3',['h3']])
 
     def test_public_graphs_preserve_required_save_format(self):
         for model in server.MODEL_BY_ID:

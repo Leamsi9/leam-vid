@@ -11,8 +11,8 @@
   <title>leam-vid</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/style.css?v=1">
-  <script src="/app.js?v=1" defer></script>
+  <link rel="stylesheet" href="/style.css?v=2">
+  <script src="/app.js?v=2" defer></script>
 </head>
 <body>
   <main class="studio">
@@ -54,7 +54,7 @@
         <p class="prompt-hint">{running|walking|sitting} picks one per video.</p>
         <fieldset id="settings" class="settings">
           <legend class="sr-only">Video settings</legend>
-          <label class="model-setting" for="model">Model<select id="model"><option value="fasth3_v2" selected disabled>FastH3 V2 NVFP4</option><option value="fasth3_trim" disabled>FastH3 Trim NVFP4</option><option value="turbowan" disabled>TurboWan 2.1 1.3B · silent drafts</option><option value="h3" disabled>MiniMax H3 Turbo · comparison</option></select></label>
+          <label class="model-setting" for="model">Model<select id="model"><option value="turbowan" selected disabled>TurboWan 2.1 1.3B · silent drafts</option><option value="h3" disabled>MiniMax H3 Turbo · comparison</option></select></label>
           <label for="duration">Duration<select id="duration" disabled><option value="5" selected>~5 seconds</option></select></label>
           <label for="size">Image size<select id="size" disabled><option value="832x480" selected>832 × 480</option></select></label>
           <label for="audio">Sound<select id="audio" disabled><option value="on" selected>On</option><option value="off">Off</option></select></label>
@@ -118,7 +118,7 @@
         </article>
       </template>
     </section>
-    <footer><span>FastH3 · TurboWan · H3 comparison</span><span>Laptop and Tailscale stay connected while you create.</span></footer>
+    <footer><span>TurboWan · H3 Turbo</span><span>Laptop and Tailscale stay connected while you create.</span></footer>
     <details id="install-help" class="install-help"><summary>Put this studio on your phone</summary><p>Open the private HTTPS studio address in Chrome on your phone, with Tailscale connected. Use Chrome’s menu → <strong>Add to Home screen</strong> → <strong>Install</strong>. Keep your laptop awake while using the studio.</p><p id="offline-note">The shortcut opens this same studio. Videos are streamed from the GPU; this app does not save a local video archive. GPU time starts when you create or start a rental; stopping keeps the disk and its storage charges.</p></details>
   </main>
 </body>
