@@ -55,6 +55,11 @@ def provider_boot_message(row):
     # Return only controlled phase text, never raw host/provider diagnostics.
     message = str(row.get('status_msg') or '').lower().splitlines()
     latest = message[-1] if message else ''
+    if 'retrying' in latest:
+        retry = re.search(r'\bretrying in ([0-9]{1,4}) seconds?\b', latest)
+        if retry and 0 < int(retry.group(1)) <= 3600:
+            return f'Retrying the GPU image download in {int(retry.group(1))} seconds.'
+        return 'Retrying the GPU image download.'
     if 'extracting' in latest or 'unpacking' in latest:
         return 'Unpacking the GPU image layers.'
     if 'verifying checksum' in latest:
