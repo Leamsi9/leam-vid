@@ -18,7 +18,8 @@ let modelInstallation = new Map();
 const pendingModelNotices = new Set();
 let modelsFetch = null, modelsInstance = undefined, modelRemoving = null, modelsVersion = 0;
 let galleryFetch = null, galleryFetchInstance = undefined, galleryInstance = undefined, galleryVersion = 0;
-try { const saved = JSON.parse(localStorage.getItem(JOBS_KEY) || '[]'); if (Array.isArray(saved)) jobs = saved.filter(validJob); } catch (_) {}
+try { const saved = JSON.parse(localStorage.getItem(JOBS_KEY) || '[]'); if (Array.isArray(saved)) jobs = saved.filter(item => validJob(item) && !TERMINAL.has(item.state)); } catch (_) {}
+saveJobs(); // Discard previously confirmed finished jobs from reconnect storage.
 function validJob(item) { return item && typeof item.id === 'string' && typeof item.client_id === 'string' && item.instance_id != null; }
 function storedGet(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
 function storedRemove(key) { try { localStorage.removeItem(key); } catch (_) {} }
@@ -137,7 +138,7 @@ function cardFor(job) {
   return card;
 }
 function placeJob(job, card) {
-  const target = $(job.state === 'queued' ? 'queued-jobs' : TERMINAL.has(job.state) ? 'past-jobs' : 'jobs');
+  const target = $(job.state === 'queued' ? 'queued-jobs' : 'jobs');
   const later = jobs.slice(jobs.indexOf(job) + 1).map(item => cards.get(item.id)).find(item => item && item.parentNode === target) || null;
   if (card.parentNode !== target || card.nextElementSibling !== later) target.insertBefore(card, later);
 }
@@ -145,14 +146,11 @@ function queueSummary() {
   const current = jobs.filter(currentJob);
   const queued = current.filter(job => job.state === 'queued').length;
   const running = current.filter(job => active(job) && job.state !== 'queued').length;
-  const past = current.filter(job => TERMINAL.has(job.state)).length;
   $('jobs-section').hidden = !running && !queued;
   $('active-jobs-heading').hidden = !running;
   $('queued-jobs-section').hidden = !queued;
   $('queue-summary').textContent = running ? `${running} active` : '';
   $('queued-jobs-count').textContent = `${queued} queued video${queued === 1 ? '' : 's'}`;
-  $('past-jobs-section').hidden = !past;
-  $('past-jobs-count').textContent = `${past} video${past === 1 ? '' : 's'}`;
   updateModelRemovalButtons();
 }
 function renderJob(job) {
@@ -161,13 +159,12 @@ function renderJob(job) {
   card.dataset.state = job.state; placeJob(job, card);
   card.querySelector('.job-title').textContent = `Video ${position}`;
   card.querySelector('.job-config').textContent = describe(job.config);
-  const labels = {posting:'Sending', queued:'Waiting', running:'Running', unknown:'Confirming', disconnected:'Reconnecting', complete:'Ready', failed:'Stopped', not_ready:'Not submitted', cancelled:'Cancelled'};
+  const labels = {posting:'Sending', queued:'Waiting', running:'Running', unknown:'Confirming', disconnected:'Reconnecting'};
   card.querySelector('.job-state').textContent = labels[job.state] || 'Waiting';
   const cancelling = Boolean(sessions.get(job.id) && sessions.get(job.id).cancelling);
   const cancel = card.querySelector('.cancel-job');
   cancel.hidden = job.state !== 'queued'; cancel.disabled = cancelling;
   cancel.textContent = cancelling ? 'Cancelling…' : 'Cancel queued video';
-  if (TERMINAL.has(job.state)) card.querySelector('.cancel-status').textContent = '';
   queueSummary();
 }
 function stage(job, title, detail, step = null, max = null) {
@@ -177,10 +174,10 @@ function stage(job, title, detail, step = null, max = null) {
   card.querySelector('.stage').textContent = title; card.querySelector('.detail').textContent = detail;
   card.querySelector('.steps').textContent = step !== null ? `${step} / ${max} steps` : '';
   if (step !== null) { progress.max = max; progress.value = step; } else progress.removeAttribute('value');
-  progress.hidden = TERMINAL.has(job.state);
+  progress.hidden = false;
 }
 function sessionFor(job) {
-  if (!sessions.has(job.id)) sessions.set(job.id, {socket:null, timer:null, lastStep:null, sawNode:false, currentNode:null, refreshing:false, cancelling:false, budgetNotified:TERMINAL.has(job.state)});
+  if (!sessions.has(job.id)) sessions.set(job.id, {socket:null, timer:null, lastStep:null, sawNode:false, currentNode:null, refreshing:false, cancelling:false});
   return sessions.get(job.id);
 }
 function finishConnection(job) {
@@ -243,10 +240,6 @@ function connectEvents(job) {
 }
 function applyState(job, data) {
   if (!jobs.includes(job)) return;
-  // Confirmed queue deletion is terminal, even if an earlier status reply arrives late.
-  if (job.state === 'cancelled' && data.state !== 'cancelled') return;
-  // A reply sent before a confirmed halt must not revive its interrupted queue.
-  if (job.state === 'failed' && currentJob(job) && cloud.instance.status === 'stopped' && cloud.operation.state === 'idle' && !TERMINAL.has(data.state)) return;
   const session = sessionFor(job);
   if (data.state === 'disconnected') {
     stage(job, 'Reconnecting to your GPU', 'Your video may still be running. It will not be submitted again.'); return;
@@ -254,13 +247,20 @@ function applyState(job, data) {
   if (typeof data.state !== 'string') throw new Error('Invalid job state');
   job.state = data.state;
   if (data.config) job.config = data.config;
+  if (TERMINAL.has(job.state)) {
+    finishConnection(job);
+    cards.get(job.id)?.remove(); cards.delete(job.id); sessions.delete(job.id);
+    jobs = jobs.filter(item => item !== job);
+    saveJobs();
+    for (const remaining of jobs) renderJob(remaining);
+    queueSummary(); updateButton();
+    if (['complete','failed','cancelled'].includes(job.state)) {
+      refreshCloud(true); refreshGallery(true); refreshModels(true);
+    }
+    return;
+  }
   saveJobs(); renderJob(job);
-  const card = cardFor(job);
-  if (data.state === 'complete') {
-    finishConnection(job); card.querySelector('.generation').hidden = true;
-  } else if (data.state === 'failed') {
-    finishConnection(job); stage(job, 'Video could not finish', data.message || 'Generation stopped. You can queue another prompt.');
-  } else if (data.state === 'queued') stage(job, 'Waiting for your GPU', 'Your scene is queued. You can add another prompt while you wait.');
+  if (data.state === 'queued') stage(job, 'Waiting for your GPU', 'Your scene is queued. You can add another prompt while you wait.');
   else if (data.state === 'running' && data.preparation && !session.lastStep) {
     const prep = data.preparation;
     if (prep.stage === 'downloading') {
@@ -271,14 +271,6 @@ function applyState(job, data) {
   }
   else if (data.state === 'running' && !session.lastStep && !session.sawNode) stage(job, 'Creating your video', 'Loading models or preparing your scene. Live steps appear when sampling starts.');
   else if (data.state === 'unknown') stage(job, 'Confirming this request', 'Checking the GPU. This request will not be sent again; you can queue a different video.');
-  else if (data.state === 'not_ready') {
-    finishConnection(job); stage(job, 'Video was not submitted', data.message || 'Please wait for the GPU and model download.');
-  } else if (data.state === 'cancelled') {
-    finishConnection(job); stage(job, 'Video cancelled', 'Removed this video from the GPU queue. Other videos keep running.');
-  }
-  if (['complete','failed','cancelled'].includes(job.state) && !session.budgetNotified) {
-    session.budgetNotified = true; refreshCloud(true); refreshGallery(true); refreshModels(true);
-  }
   updateButton();
 }
 async function cancelJob(job) {
@@ -312,10 +304,7 @@ async function refreshJob(job) {
     const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}?model=${encodeURIComponent(job.config && job.config.model || DEFAULT_MODEL)}`, {cache:'no-store'});
     if (!response.ok) throw new Error('Connection unavailable');
     const data = await response.json(); if (!currentJob(job)) return;
-    if (data.state === 'unknown' && TERMINAL.has(job.state)) {
-      // Comfy history can reset while its output files remain in the gallery.
-      if (job.state === 'complete') { applyState(job, {state:'complete'}); refreshGallery(); }
-    } else applyState(job, data);
+    applyState(job, data);
   } catch (_) { if (active(job)) stage(job, 'Reconnecting to your GPU', 'Your video may still be running. It will not be submitted again.'); }
   finally { session.refreshing = false; }
 }
@@ -325,7 +314,7 @@ function reconcileInstance() {
   const id = cloud.instance ? String(cloud.instance.id) : null;
   if (initialCloud || id !== lastInstance) {
     available = false;
-    jobs = jobs.filter(job => id !== null && String(job.instance_id) === id && job.state !== 'lost');
+    jobs = jobs.filter(job => id !== null && String(job.instance_id) === id && job.state !== 'lost' && active(job));
     const retained = new Set(jobs.map(job => job.id));
     for (const [jobId, session] of sessions) if (!retained.has(jobId)) {
       clearTimeout(session.timer);
@@ -337,8 +326,7 @@ function reconcileInstance() {
     clearGallery(); galleryInstance = id;
     for (const job of jobs) {
       renderJob(job);
-      if (active(job) || job.state === 'complete') { refreshJob(job); if (active(job)) connectEvents(job); }
-      else applyState(job, {state:job.state});
+      refreshJob(job); connectEvents(job);
     }
     saveJobs(); $('destroy-confirm').hidden = true; $('stop-confirm').hidden = true;
     lastInstance = id; initialCloud = false;
