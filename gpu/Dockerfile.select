@@ -3,6 +3,7 @@ ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 RUN test -f /workspace/wan-cloud/native-image-v1.installed
 COPY assets/runtime-models.json assets/image-profile.json /workspace/wan-assets/
+COPY assets/prepare-model.py /workspace/wan-assets/prepare-model.py
 COPY assets/private-video-nodes.py /workspace/wan-assets/private-video-nodes.py
 COPY assets/start-comfy-video.sh assets/sshd-with-hostkeys.sh /workspace/wan-assets/
 RUN if [ ! -e /usr/sbin/sshd.real ]; then mv /usr/sbin/sshd /usr/sbin/sshd.real; fi && cp /workspace/wan-assets/sshd-with-hostkeys.sh /usr/sbin/sshd && chmod 755 /usr/sbin/sshd && chmod 700 /workspace/wan-assets/start-comfy-video.sh && cp /workspace/wan-assets/private-video-nodes.py /workspace/wan-cloud/ComfyUI/custom_nodes/PrivateVideoRuntime/__init__.py && rm -f /opt/private-video/examples/*.json

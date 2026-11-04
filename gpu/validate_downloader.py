@@ -58,6 +58,47 @@ class DownloadBoundary(unittest.TestCase):
  def blob(self):return prep.STORE/self.item['key']
  def partial(self):return Path(str(self.blob())+'.part')
  def assert_complete(self):self.assertEqual(self.blob().read_bytes(),PAYLOAD);self.assertFalse(self.partial().exists())
+ def configure_failover(self,gated=False,token=None,corrupt=False):
+  self.get_patch.stop();self.urls=[]
+  prep.MANIFEST={'models':{'public':{'gated':gated,'files':[self.item]}}}
+  def get(url,**kwargs):
+   self.urls.append(url)
+   self.assertIsNot(kwargs.get('verify',True),False)
+   if url.startswith('https://huggingface.co/'):
+    raise prep.requests.ConnectionError('public network failure fixture')
+   self.assertEqual(url,'https://hf-mirror.com/public/fixture/resolve/fixed/fixture.bin')
+   self.assertNotIn('Authorization',kwargs.get('headers',{}))
+   if corrupt:Handler.mode='corrupt'
+   return self.original_get(f'http://127.0.0.1:{self.server.server_port}/fixture',**kwargs)
+  self.get_patch=patch.object(prep.requests,'get',side_effect=get);self.get_patch.start()
+ def test_public_connection_failure_uses_verified_mirror(self):
+  self.configure_failover();prep.ensure_artifact(self.item,None);self.assert_complete()
+  self.assertEqual(len(self.urls),2);self.assertTrue(self.urls[-1].startswith('https://hf-mirror.com/'))
+ def test_mirror_resume_preserves_range_and_hash(self):
+  self.configure_failover();self.partial().write_bytes(PAYLOAD[:131072])
+  prep.ensure_artifact(self.item,None);self.assert_complete();self.assertEqual(Handler.calls,['bytes=131072-'])
+ def test_late_connection_failure_does_not_exceed_retry_budget_or_report_success(self):
+  self.configure_failover();self.get_patch.stop();Handler.mode='missing';count=0
+  def get(url,**kwargs):
+   nonlocal count
+   count+=1
+   if count==5:raise prep.requests.ConnectionError('public late network failure')
+   return self.original_get(f'http://127.0.0.1:{self.server.server_port}/fixture',**kwargs)
+  self.get_patch=patch.object(prep.requests,'get',side_effect=get);self.get_patch.start()
+  with self.assertRaises(prep.PreparationError):prep.ensure_artifact(self.item,None)
+  self.assertEqual(count,5);self.assertFalse(self.blob().exists())
+ def test_authenticated_artifact_never_uses_mirror(self):
+  self.configure_failover()
+  with self.assertRaises(prep.PreparationError):prep.ensure_artifact(self.item,'public-test-token-placeholder')
+  self.assertEqual(len(self.urls),5);self.assertTrue(all(url.startswith('https://huggingface.co/') for url in self.urls))
+ def test_gated_artifact_never_uses_mirror_even_without_token(self):
+  self.configure_failover(gated=True)
+  with self.assertRaises(prep.PreparationError):prep.ensure_artifact(self.item,None)
+  self.assertEqual(len(self.urls),5);self.assertTrue(all(url.startswith('https://huggingface.co/') for url in self.urls))
+ def test_mirror_hash_mismatch_is_never_published(self):
+  self.configure_failover(corrupt=True)
+  with self.assertRaises(prep.PreparationError):prep.ensure_artifact(self.item,None)
+  self.assertFalse(self.blob().exists());self.assertFalse(self.partial().exists())
  def test_initial_download_and_verified_reuse(self):
   prep.ensure_artifact(self.item,None);self.assert_complete();prep.ensure_artifact(self.item,None);self.assertEqual(len(Handler.calls),1)
  def test_resume(self):

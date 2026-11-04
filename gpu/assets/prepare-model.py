@@ -97,9 +97,18 @@ def valid_hash(path, item):
     return digest.hexdigest() == item['key']
 
 
+def public_mirror_allowed(item, token):
+    # Only artifacts explicitly owned by public selected models may use a mirror.
+    # Unknown artifacts, gated models and any authenticated request fail closed.
+    if token: return False
+    owners = [spec for spec in MANIFEST['models'].values() if item in spec['files']]
+    return bool(owners) and all(not spec.get('gated') for spec in owners)
+
+
 def download(item, blob, token):
     partial = Path(str(blob) + '.part')
-    url = f"https://huggingface.co/{item['repo']}/resolve/{item['revision']}/{item['name']}"
+    path = f"/{item['repo']}/resolve/{item['revision']}/{item['name']}"
+    mirror = False
     for attempt in range(5):
         have = partial.stat().st_size if partial.exists() else 0
         if have == item['size']:
@@ -114,10 +123,11 @@ def download(item, blob, token):
         headers = {'Range': f'bytes={have}-'} if have else {}
         if token:
             headers['Authorization'] = 'Bearer ' + token
+        url = ('https://hf-mirror.com' if mirror else 'https://huggingface.co') + path
         try:
             # requests removes Authorization on redirects to other hosts. The
             # initial URL is always a pinned official huggingface.co artifact.
-            with requests.get(url, headers=headers, stream=True, timeout=(15, 120)) as response:
+            with requests.get(url, headers=headers, stream=True, timeout=(5, 120)) as response:
                 if response.status_code in {401, 403}:
                     raise PreparationError('access')
                 response.raise_for_status()
@@ -132,8 +142,16 @@ def download(item, blob, token):
                 raise PreparationError('runtime')
             partial.replace(blob)
             return
+        except (requests.ConnectionError, requests.Timeout):
+            if not mirror and public_mirror_allowed(item, token):
+                if attempt == 4: raise PreparationError('runtime') from None
+                mirror = True
+                print('PUBLIC_MODEL_DOWNLOAD_SOURCE=mirror', flush=True)
+                continue
+            if attempt == 4: raise PreparationError('runtime') from None
+            time.sleep(2)
         except requests.RequestException:
-            if attempt == 4: raise PreparationError('runtime')
+            if attempt == 4: raise PreparationError('runtime') from None
             time.sleep(2)
 
 if __name__ == '__main__':

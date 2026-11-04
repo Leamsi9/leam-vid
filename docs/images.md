@@ -77,6 +77,17 @@ Confirm your Vast configuration supports those credentials before creating.
 A laptop-only or tailnet-only registry is unreachable to the host before its
 container starts; a publicly reachable TLS endpoint is required.
 
+## Download connectivity
+
+Downloads try the pinned Hugging Face URL first. If its network connection fails,
+public selected artifacts may fall back to `https://hf-mirror.com` using the same
+repository, exact revision and file path. TLS verification, expected byte size
+and full SHA256 verification remain mandatory before a file is published.
+Authenticated requests, gated models and artifacts absent from the selected
+manifest never use the mirror. HTTP access denials do not trigger a fallback.
+Both origins share the existing bounded retry/resume logic and artifact lock.
+The mirror receives public model download requests only, never prompts or media.
+
 ## Adding a different model
 
 Selecting these supported IDs is different from adding a new architecture.
