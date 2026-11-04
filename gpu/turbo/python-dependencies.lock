@@ -1,0 +1,9 @@
+ftfy==6.3.1
+ImageIO==2.38.1
+imageio-ffmpeg==0.8.1
+loguru==0.7.3
+nvidia-ml-py==13.615.71
+pandas==3.1.0
+python-dateutil==4.0.0
+termcolor==3.3.0
+tzdata==2026.6

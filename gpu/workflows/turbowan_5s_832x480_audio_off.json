@@ -1,0 +1,27 @@
+{
+  "30": {
+    "class_type": "PrivateVideoGenerate",
+    "inputs": {
+      "model": "turbowan",
+      "prompt": "A small red ball on a plain table.",
+      "width": 832,
+      "height": 480,
+      "frames": 81,
+      "seed": 1,
+      "audio": false
+    }
+  },
+  "31": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "30",
+        0
+      ],
+      "filename_prefix": "video/turbowan",
+      "format": "mp4",
+      "format.codec": "h264",
+      "format.codec.encoding": "auto"
+    }
+  }
+}

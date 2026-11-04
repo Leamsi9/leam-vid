@@ -1,0 +1,16 @@
+ARG BASE_IMAGE=pytorch/pytorch:2.9.1-cuda13.0-cudnn9-runtime@sha256:60f22fb80755fd0b470fb47928dbd55816aa9f847edd95cf43c93253507a9ddf
+FROM ${BASE_IMAGE}
+ENV DEBIAN_FRONTEND=noninteractive HF_HUB_DISABLE_TELEMETRY=1 DO_NOT_TRACK=1
+RUN apt-get update -qq && apt-get install -y --no-install-recommends git ca-certificates curl openssh-server ffmpeg build-essential && rm -f /etc/ssh/ssh_host_* && rm -rf /var/lib/apt/lists/*
+ARG COMFY_PIN=426f5eea52a7ece1dd599fff4cb6cd1f352ddd24
+RUN mkdir -p /workspace/wan-cloud/ComfyUI /workspace/wan-assets && cd /workspace/wan-cloud/ComfyUI && git init && git remote add origin https://github.com/Comfy-Org/ComfyUI.git && git fetch --depth 1 origin ${COMFY_PIN} && git checkout --detach FETCH_HEAD && rm -rf .git
+COPY dependency-lock.txt /opt/private-video-dependency-lock.txt
+RUN python -c "from importlib.metadata import distributions;print('\n'.join(f'{d.metadata[\"Name\"]}=={d.version}' for d in distributions() if d.metadata['Name'].lower() in ('torch','torchvision','torchaudio','torchcodec')))" > /opt/torch-constraints.txt && python -m pip install --no-cache-dir -c /opt/torch-constraints.txt -c /opt/private-video-dependency-lock.txt -r /workspace/wan-cloud/ComfyUI/requirements.txt requests==2.32.5 && python -m pip list --format=freeze > /opt/private-video-runtime-lock.txt
+COPY assets/ /workspace/wan-assets/
+RUN mkdir -p /workspace/wan-cloud/ComfyUI/custom_nodes/PrivateVideoRuntime && cp /workspace/wan-assets/private-video-nodes.py /workspace/wan-cloud/ComfyUI/custom_nodes/PrivateVideoRuntime/__init__.py && chmod 700 /workspace/wan-assets/*.sh && ln -s /workspace/wan-assets/start-comfy-video.sh /workspace/wan-cloud/start-comfy-video.sh && touch /workspace/wan-cloud/runtime-models-v2.installed /workspace/wan-cloud/native-image-v1.installed
+COPY native_graphs.py /opt/private-video/native_graphs.py
+COPY workflows/ /opt/private-video/examples/
+WORKDIR /workspace/wan-cloud/ComfyUI
+LABEL org.opencontainers.image.title="leam-vid GPU runtime" org.opencontainers.image.revision="426f5eea52a7ece1dd599fff4cb6cd1f352ddd24"
+ENTRYPOINT []
+CMD ["/workspace/wan-assets/start-comfy-video.sh"]

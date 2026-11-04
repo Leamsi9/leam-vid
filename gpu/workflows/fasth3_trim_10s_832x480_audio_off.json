@@ -1,0 +1,147 @@
+{
+  "10": {
+    "class_type": "PrivateVideoModels",
+    "inputs": {
+      "model": "fasth3_trim"
+    }
+  },
+  "11": {
+    "class_type": "ModelAttentionBackend",
+    "inputs": {
+      "model": [
+        "10",
+        0
+      ],
+      "attention": "comfy kitchen attention"
+    }
+  },
+  "16": {
+    "class_type": "MiniMaxH3ImageToVideo",
+    "inputs": {
+      "clip": [
+        "10",
+        1
+      ],
+      "vae": [
+        "10",
+        2
+      ],
+      "prompt": "A small red ball on a plain table.",
+      "width": 832,
+      "height": 480,
+      "length": 243
+    }
+  },
+  "17": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 1
+    }
+  },
+  "18": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "26",
+        0
+      ],
+      "conditioning": [
+        "16",
+        0
+      ]
+    }
+  },
+  "19": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "26",
+        0
+      ],
+      "scheduler": "simple",
+      "steps": 8,
+      "denoise": 1.0
+    }
+  },
+  "20": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "res_multistep"
+    }
+  },
+  "21": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "17",
+        0
+      ],
+      "guider": [
+        "18",
+        0
+      ],
+      "sampler": [
+        "20",
+        0
+      ],
+      "sigmas": [
+        "19",
+        0
+      ],
+      "latent_image": [
+        "16",
+        1
+      ]
+    }
+  },
+  "22": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "21",
+        0
+      ],
+      "vae": [
+        "10",
+        2
+      ]
+    }
+  },
+  "24": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "22",
+        0
+      ],
+      "fps": 24.0,
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "codec": "none"
+    }
+  },
+  "25": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "24",
+        0
+      ],
+      "filename_prefix": "video/fasth3_trim",
+      "format": "mp4",
+      "format.codec": "h264",
+      "format.codec.encoding": "auto"
+    }
+  },
+  "26": {
+    "class_type": "MiniMaxH3SigmaShift",
+    "inputs": {
+      "model": [
+        "11",
+        0
+      ],
+      "shift_video": 10.0,
+      "shift_audio": 3.0
+    }
+  }
+}

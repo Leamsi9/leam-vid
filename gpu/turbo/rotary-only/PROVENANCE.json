@@ -1,0 +1,28 @@
+{
+  "repository": "https://github.com/Dao-AILab/flash-attention",
+  "commit": "060c9188beec3a8b62b33a3bfa6d5d2d44975fab",
+  "tag": "v2.8.3",
+  "adaptation": "layers/rotary.py changes only import from flash_attn.ops.triton.rotary to .kernel",
+  "files": {
+    "private_video_rotary/layer.py": {
+      "source": "https://raw.githubusercontent.com/Dao-AILab/flash-attention/060c9188beec3a8b62b33a3bfa6d5d2d44975fab/flash_attn/layers/rotary.py",
+      "upstream_sha256": "a79cb42dfc33e126227bdba27ae7a024d7d5cc5c8fd7f7a5f26c68d501024e0a",
+      "packaged_sha256": "18eb906f6073ec1f42b6ae23a4ac2d2df8d37233c1de6258a1411ba499ae602c"
+    },
+    "private_video_rotary/kernel.py": {
+      "source": "https://raw.githubusercontent.com/Dao-AILab/flash-attention/060c9188beec3a8b62b33a3bfa6d5d2d44975fab/flash_attn/ops/triton/rotary.py",
+      "upstream_sha256": "d2037e623854c702fb075784fe4292d4a89d6b9ac1ae33cab3d6788f8f94f240",
+      "packaged_sha256": "d2037e623854c702fb075784fe4292d4a89d6b9ac1ae33cab3d6788f8f94f240"
+    },
+    "LICENSE": {
+      "source": "https://raw.githubusercontent.com/Dao-AILab/flash-attention/060c9188beec3a8b62b33a3bfa6d5d2d44975fab/LICENSE",
+      "upstream_sha256": "8c9ccb96c065e706135b6cbad279b721da6156e51f3a5f27c6b3329af9416d73",
+      "packaged_sha256": "8c9ccb96c065e706135b6cbad279b721da6156e51f3a5f27c6b3329af9416d73"
+    },
+    "AUTHORS": {
+      "source": "https://raw.githubusercontent.com/Dao-AILab/flash-attention/060c9188beec3a8b62b33a3bfa6d5d2d44975fab/AUTHORS",
+      "upstream_sha256": "f3bf4144826a62841b7f9aebc5057f75da2d32a652a573edc67250ec94a377a7",
+      "packaged_sha256": "f3bf4144826a62841b7f9aebc5057f75da2d32a652a573edc67250ec94a377a7"
+    }
+  }
+}

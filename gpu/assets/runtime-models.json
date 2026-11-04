@@ -1,0 +1,198 @@
+{
+  "models": {
+    "fasth3_v2": {
+      "native": true,
+      "files": [
+        {
+          "repo": "FastVideo/FastVideo-FastH3-8-Step-V2-NVFP4-Comfy",
+          "revision": "994a40beb8c8f15739e4f0fad96aec101bb7123c",
+          "name": "diffusion_models/fastvideo_fasth3_8step_v2_pruned_nvfp4.safetensors",
+          "destination": "diffusion_models/fastvideo_fasth3_8step_v2_pruned_nvfp4.safetensors",
+          "size": 13612462670,
+          "key": "49371f21b546e59813984938a1b4fbea9348eb5003e07a01d48083efcc5a1d94"
+        },
+        {
+          "repo": "Comfy-Org/MiniMax-H3",
+          "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+          "name": "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+          "size": 15687142551,
+          "key": "35a88d51044231fe332301d7a62aa81e3f2cba62febeb446e2c1e3e0ef76f2c6",
+          "destination": "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+        },
+        {
+          "repo": "Comfy-Org/MiniMax-H3",
+          "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+          "name": "vae/minimax_h3_audio_vae_fp32.safetensors",
+          "size": 605254808,
+          "key": "8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48",
+          "destination": "vae/minimax_h3_audio_vae_fp32.safetensors"
+        },
+        {
+          "repo": "Comfy-Org/MiniMax-H3",
+          "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+          "name": "vae/minimax_h3_video_vae_int8_convrot.safetensors",
+          "size": 2811065184,
+          "key": "52a2c8c73583c86e4f41cdcce3a6ad0ea562987bc0bf3d60a0cef5f5c8e60c0e",
+          "destination": "vae/minimax_h3_video_vae_int8_convrot.safetensors"
+        }
+      ]
+    },
+    "fasth3_trim": {
+      "native": true,
+      "files": [
+        {
+          "repo": "FastVideo/FastVideo-FastH3-Trim-Comfy",
+          "revision": "f66c13dc17391dd4da99242a407918b92bf7d5fc",
+          "name": "diffusion_models/fastvideo_fasth3_trim_8step_nvfp4.safetensors",
+          "destination": "diffusion_models/fastvideo_fasth3_trim_8step_nvfp4.safetensors",
+          "size": 11894623166,
+          "key": "748b2bcc9c4b7bf7b23406987b42d4ac40362070c164cf11092482be6a863455"
+        },
+        {
+          "repo": "Comfy-Org/MiniMax-H3",
+          "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+          "name": "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+          "size": 15687142551,
+          "key": "35a88d51044231fe332301d7a62aa81e3f2cba62febeb446e2c1e3e0ef76f2c6",
+          "destination": "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+        },
+        {
+          "repo": "Comfy-Org/MiniMax-H3",
+          "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+          "name": "vae/minimax_h3_audio_vae_fp32.safetensors",
+          "size": 605254808,
+          "key": "8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48",
+          "destination": "vae/minimax_h3_audio_vae_fp32.safetensors"
+        },
+        {
+          "repo": "Comfy-Org/MiniMax-H3",
+          "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+          "name": "vae/minimax_h3_video_vae_int8_convrot.safetensors",
+          "size": 2811065184,
+          "key": "52a2c8c73583c86e4f41cdcce3a6ad0ea562987bc0bf3d60a0cef5f5c8e60c0e",
+          "destination": "vae/minimax_h3_video_vae_int8_convrot.safetensors"
+        }
+      ]
+    },
+    "h3": {
+      "native": true,
+      "files": [
+        {
+          "repo": "Comfy-Org/MiniMax-H3",
+          "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+          "name": "diffusion_models/minimax_h3_fl2va_pruned_w6a8.safetensors",
+          "size": 15983746636,
+          "key": "ac746a2e41628ab25afd44d2b22a7fab8d7e66cd07a01bf89ed9d74b0d3f0c35",
+          "destination": "diffusion_models/minimax_h3_fl2va_pruned_w6a8.safetensors"
+        },
+        {
+          "repo": "Comfy-Org/MiniMax-H3",
+          "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+          "name": "loras/minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
+          "size": 1956192992,
+          "key": "c396a9a06f58399e9df9754b18299818d84a2ddd371724ba48fe4a41221437dc",
+          "destination": "loras/minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors"
+        },
+        {
+          "repo": "Comfy-Org/MiniMax-H3",
+          "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+          "name": "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+          "size": 15687142551,
+          "key": "35a88d51044231fe332301d7a62aa81e3f2cba62febeb446e2c1e3e0ef76f2c6",
+          "destination": "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+        },
+        {
+          "repo": "Comfy-Org/MiniMax-H3",
+          "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+          "name": "vae/minimax_h3_audio_vae_fp32.safetensors",
+          "size": 605254808,
+          "key": "8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48",
+          "destination": "vae/minimax_h3_audio_vae_fp32.safetensors"
+        },
+        {
+          "repo": "Comfy-Org/MiniMax-H3",
+          "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+          "name": "vae/minimax_h3_video_vae_int8_convrot.safetensors",
+          "size": 2811065184,
+          "key": "52a2c8c73583c86e4f41cdcce3a6ad0ea562987bc0bf3d60a0cef5f5c8e60c0e",
+          "destination": "vae/minimax_h3_video_vae_int8_convrot.safetensors"
+        }
+      ]
+    },
+    "turbowan": {
+      "native": false,
+      "files": [
+        {
+          "repo": "TurboDiffusion/TurboWan2.1-T2V-1.3B-480P",
+          "revision": "604763ecc3021988497f38c421fc9fc9a1bac1a8",
+          "name": "TurboWan2.1-T2V-1.3B-480P-quant.pth",
+          "size": 1448315371,
+          "key": "733ba96a0a1b4812e70db09bd07e4b1205c8266dc2b8e8fad46df9323473754c",
+          "destination": "TurboWan2.1-T2V-1.3B-480P-quant.pth"
+        },
+        {
+          "repo": "Wan-AI/Wan2.1-T2V-1.3B",
+          "revision": "37ec512624d61f7aa208f7ea8140a131f93afc9a",
+          "name": "Wan2.1_VAE.pth",
+          "size": 507609880,
+          "key": "38071ab59bd94681c686fa51d75a1968f64e470262043be31f7a094e442fd981",
+          "destination": "Wan2.1_VAE.pth"
+        },
+        {
+          "repo": "Wan-AI/Wan2.1-T2V-1.3B",
+          "revision": "37ec512624d61f7aa208f7ea8140a131f93afc9a",
+          "name": "models_t5_umt5-xxl-enc-bf16.pth",
+          "size": 11361920418,
+          "key": "7cace0da2b446bbbbc57d031ab6cf163a3d59b366da94e5afe36745b746fd81d",
+          "destination": "models_t5_umt5-xxl-enc-bf16.pth"
+        },
+        {
+          "repo": "google/umt5-xxl",
+          "revision": "66cb9e7e85526fe440a945569e42c72fb6cbc0ad",
+          "name": "config.json",
+          "size": 799,
+          "key": "17a62e1c5e1cdfa62dd15794081a523d1310c77135ad99158a9bd5cfbdef83f6",
+          "destination": "tokenizer/config.json",
+          "upstream_git_blob": "63af2a0b47f4222ae965ebaba08fe5b3b5f2b8da"
+        },
+        {
+          "repo": "google/umt5-xxl",
+          "revision": "66cb9e7e85526fe440a945569e42c72fb6cbc0ad",
+          "name": "special_tokens_map.json",
+          "size": 6623,
+          "key": "14ef492a69e59396e918521a5f8394af1acf9f8dddd47273693b2b42570dfd12",
+          "destination": "tokenizer/special_tokens_map.json",
+          "upstream_git_blob": "9b23a4a3e8026c3c6022e1f35ffd117a2f72dd76"
+        },
+        {
+          "repo": "google/umt5-xxl",
+          "revision": "66cb9e7e85526fe440a945569e42c72fb6cbc0ad",
+          "name": "spiece.model",
+          "size": 4548313,
+          "key": "e3909a67b780650b35cf529ac782ad2b6b26e6d1f849d3fbb6a872905f452458",
+          "destination": "tokenizer/spiece.model"
+        },
+        {
+          "repo": "google/umt5-xxl",
+          "revision": "66cb9e7e85526fe440a945569e42c72fb6cbc0ad",
+          "name": "tokenizer.json",
+          "size": 16853013,
+          "key": "af904105ce1071b1202bba0059a841f4a7b85b48b6ec179c4948e3483476e0dd",
+          "destination": "tokenizer/tokenizer.json"
+        },
+        {
+          "repo": "google/umt5-xxl",
+          "revision": "66cb9e7e85526fe440a945569e42c72fb6cbc0ad",
+          "name": "tokenizer_config.json",
+          "size": 6841,
+          "key": "616015e2b6c26f9a98ae3171634518d440a46260ebc1115c2596792d33827bdc",
+          "destination": "tokenizer/tokenizer_config.json",
+          "upstream_git_blob": "c1a696560218c243e01e37c5f9cd5c368db936df"
+        }
+      ]
+    }
+  },
+  "sources": {
+    "turbodiffusion": "e3d61360b0eeab60c5cd09ff7d6c1020cccc80b2"
+  }
+}

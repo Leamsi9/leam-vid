@@ -1,0 +1,12 @@
+{
+  "id": "native-v1",
+  "comfy_pin": "426f5eea52a7ece1dd599fff4cb6cd1f352ddd24",
+  "models": [
+    "h3",
+    "fasth3_v2",
+    "fasth3_trim",
+    "turbowan"
+  ],
+  "unique_weight_bytes": 75889749265,
+  "first_model_default": "turbowan"
+}

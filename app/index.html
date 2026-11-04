@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111312">
+  <meta name="description" content="Your private, on-demand leam-vid.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="leam-vid">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>leam-vid</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=1">
+  <script src="/app.js?v=1" defer></script>
+</head>
+<body>
+  <main class="studio">
+    <header>
+      <a class="wordmark" href="/" aria-label="leam-vid home"><span class="mark" aria-hidden="true">◈</span> leam-vid</a>
+      <button id="install" class="quiet small" type="button" hidden>Add to phone <span aria-hidden="true">＋</span></button>
+      <span id="private-label" class="private"><span></span> Private connection</span>
+    </header>
+    <section class="cloud" aria-label="GPU and budget">
+      <div class="cloud-top">
+        <div class="cloud-identity"><span class="eyebrow">YOUR GPU</span><h2 id="gpu-name">Connecting…</h2><p id="instance-info">Checking your rental</p></div>
+        <div class="budget"><span class="eyebrow">CREDIT LEFT</span><strong id="balance">—</strong><span id="hourly-rate">USD · live rental pricing</span></div>
+      </div>
+      <div class="cloud-bottom">
+        <p id="cloud-message" role="status" aria-live="polite">Connecting to your private studio…</p>
+        <div class="cloud-actions">
+          <button id="create-gpu" class="small" type="button" disabled>Create GPU instance <span aria-hidden="true">＋</span></button>
+          <button id="start-gpu" class="small" type="button" hidden>Start GPU <span aria-hidden="true">↗</span></button>
+          <button id="stop-gpu" class="quiet small" type="button" hidden>Stop</button>
+          <button id="destroy-gpu" class="quiet danger small" type="button" hidden>Destroy</button>
+        </div>
+      </div>
+      <div id="stop-confirm" class="confirmation" hidden>
+        <p><strong>Stop this GPU?</strong> Any running or queued videos will be interrupted. Files remain on its disk, and storage is still billed until you destroy the rental.</p>
+        <div class="confirmation-actions"><button id="cancel-stop" class="quiet small" type="button">Keep running</button><button id="confirm-stop" class="small" type="button">Stop GPU</button></div>
+      </div>
+      <div id="destroy-confirm" class="confirmation" hidden>
+        <p><strong>Destroy this GPU and its files?</strong> This interrupts running and queued videos, deletes remote prompts, videos, models and the rental disk, and ends its billing.</p>
+        <div class="confirmation-actions"><button id="cancel-destroy" class="quiet small" type="button">Keep GPU</button><button id="confirm-destroy" class="destructive small" type="button">Delete files and destroy</button></div>
+      </div>
+      <p id="cloud-error" class="inline-error" role="alert" hidden></p>
+      <div class="cloud-caption"><span id="budget-updated">Budget updates after a generation or every 5 minutes.</span><button id="refresh-cloud" class="text-button" type="button" aria-label="Refresh GPU and budget">Refresh ↻</button></div>
+    </section>
+    <section class="intro"><p class="eyebrow">A LITTLE IDEA. A MOVING PICTURE.</p><h1>What do you<br>want to see?</h1><p class="description">Describe a scene, the movement, and the sounds.<br>Your video is made on your rented machine.</p></section>
+    <section class="workspace" aria-label="Create a video">
+      <div class="composer">
+        <label class="prompt-label" for="prompt">Your scene</label>
+        <textarea id="prompt" maxlength="12000" placeholder="A small orange cat turns toward a sunlit window. A quiet room, a soft purr, a steady camera…" spellcheck="true"></textarea>
+        <p class="prompt-hint">{running|walking|sitting} picks one per video.</p>
+        <fieldset id="settings" class="settings">
+          <legend class="sr-only">Video settings</legend>
+          <label class="model-setting" for="model">Model<select id="model"><option value="fasth3_v2" selected disabled>FastH3 V2 NVFP4</option><option value="fasth3_trim" disabled>FastH3 Trim NVFP4</option><option value="turbowan" disabled>TurboWan 2.1 1.3B · silent drafts</option><option value="h3" disabled>MiniMax H3 Turbo · comparison</option></select></label>
+          <label for="duration">Duration<select id="duration" disabled><option value="5" selected>~5 seconds</option></select></label>
+          <label for="size">Image size<select id="size" disabled><option value="832x480" selected>832 × 480</option></select></label>
+          <label for="audio">Sound<select id="audio" disabled><option value="on" selected>On</option><option value="off">Off</option></select></label>
+          <label for="batch">Videos<select id="batch"><option value="1">1 video</option><option value="2">2 variations</option><option value="3">3 variations</option><option value="4">4 variations</option></select></label>
+        </fieldset>
+        <p id="model-note" class="settings-note">Waiting for supported model settings from your private studio.</p>
+        <div class="composer-footer"><span id="specs" class="specs">HD · ~5 seconds · With sound</span><button id="generate" type="button" disabled><span id="button-label">Connecting…</span><span aria-hidden="true">↗</span></button></div>
+      </div>
+      <div class="activity" role="status" aria-live="polite"><span id="connection-dot" class="dot"></span><span id="availability">Connecting to your GPU…</span></div>
+      <div id="model-ready-notice" class="model-ready-notice" role="status" aria-live="polite" hidden><span id="model-ready-message"></span><button id="dismiss-model-notice" class="text-button" type="button" aria-label="Dismiss model notification">Dismiss</button></div>
+      <details id="model-files" class="model-files" hidden>
+        <summary>Model preparation and files</summary>
+        <div class="model-files-heading"><span id="model-free-space"></span><button id="enable-model-notifications" class="text-button" type="button" title="Alerts while the studio is open. This does not enable push notifications when it is closed." hidden>Enable notifications</button><button id="refresh-models" class="text-button" type="button">Refresh files ↻</button></div>
+        <p id="model-files-status" role="status">Open this section to check model files on your GPU.</p>
+        <div id="model-files-list"></div>
+      </details>
+      <section id="jobs-section" class="jobs-section" hidden aria-label="Current and queued generations">
+        <div id="active-jobs-heading" class="queue-heading" hidden><h2>Current generation</h2><span id="queue-summary"></span></div>
+        <div id="jobs"></div>
+        <details id="queued-jobs-section" class="queued-jobs" hidden>
+          <summary id="queued-jobs-count">Queued videos</summary>
+          <div id="queued-jobs"></div>
+        </details>
+      </section>
+      <template id="job-template">
+        <article class="job-card">
+          <div class="job-heading"><h3 class="job-title"></h3><span class="job-state"></span></div>
+          <p class="job-config"></p>
+          <div class="generation" role="status" aria-live="polite"><div class="progress-heading"><span class="stage">Waiting for the GPU</span><span class="steps"></span></div><progress aria-label="Generation progress"></progress><p class="detail"></p></div>
+          <div class="job-actions"><button class="cancel-job quiet small" type="button" hidden>Cancel queued video</button></div>
+          <p class="cancel-status" role="status" aria-live="polite"></p>
+        </article>
+      </template>
+      <section class="gallery-section" aria-label="Videos on your GPU">
+        <div class="queue-heading"><h2>Your videos</h2><span id="gallery-count"></span></div>
+        <p id="gallery-message" class="gallery-message" role="status">Videos appear here when generation finishes. They stay on the GPU until you destroy it.</p>
+        <div id="gallery" class="gallery"></div>
+      </section>
+      <section id="past-jobs-section" class="jobs-section" hidden aria-label="Past generations">
+        <div class="queue-heading"><h2>Past jobs</h2><span id="past-jobs-count"></span></div>
+        <div id="past-jobs"></div>
+      </section>
+      <template id="video-template">
+        <article class="remote-video">
+          <video controls playsinline preload="none"></video>
+          <div class="video-info">
+            <h3></h3><p></p>
+            <p class="generation-time" title="Elapsed execution time, excluding queue wait. Includes any first-use preparation and model downloads."></p>
+            <div class="video-actions"><button class="text-button prompt-toggle" type="button" aria-expanded="false">Show prompt</button><button class="delete-video quiet danger small" type="button">Delete</button></div>
+            <section class="delete-confirm" hidden aria-label="Delete this video">
+              <p>Permanently delete this video from your GPU?</p>
+              <div class="delete-actions"><button class="cancel-delete quiet small" type="button">Keep video</button><button class="confirm-delete destructive small" type="button">Delete video</button></div>
+            </section>
+            <p class="delete-status" role="status" aria-live="polite"></p>
+            <section class="prompt-panel" hidden aria-label="Generation prompt">
+              <pre class="video-prompt" tabindex="0" hidden></pre>
+              <button class="quiet small copy-prompt" type="button" hidden>Copy prompt</button>
+              <p class="prompt-status" role="status" aria-live="polite"></p>
+            </section>
+          </div>
+        </article>
+      </template>
+    </section>
+    <footer><span>FastH3 · TurboWan · H3 comparison</span><span>Laptop and Tailscale stay connected while you create.</span></footer>
+    <details id="install-help" class="install-help"><summary>Put this studio on your phone</summary><p>Open the private HTTPS studio address in Chrome on your phone, with Tailscale connected. Use Chrome’s menu → <strong>Add to Home screen</strong> → <strong>Install</strong>. Keep your laptop awake while using the studio.</p><p id="offline-note">The shortcut opens this same studio. Videos are streamed from the GPU; this app does not save a local video archive. GPU time starts when you create or start a rental; stopping keeps the disk and its storage charges.</p></details>
+  </main>
+</body>
+</html>
