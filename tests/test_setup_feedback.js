@@ -1,0 +1,18 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync(require('node:path').join(__dirname,'../app/app.js'),'utf8');
+const helper=source.slice(source.indexOf('let setupObservation = null;'),source.indexOf('function updateButton()'));
+let now=1000;
+const sandbox={String,Math,Number,Date:{now:()=>now},cloud:{instance:{id:42,status:'loading'},operation:{state:'creating'},setup:{state:'connecting',message:'Waiting for GPU boot and SSH.'}}};
+vm.createContext(sandbox);vm.runInContext(helper,sandbox);
+assert.equal(sandbox.setupFeedback(),'Waiting for GPU boot and SSH. · 0s observed');
+now=66000;assert.equal(sandbox.setupFeedback(),'Waiting for GPU boot and SSH. · 1m 5s observed');
+sandbox.cloud.instance.setup_started_at=1;assert.match(sandbox.setupFeedback(),/1m 5s elapsed$/);
+delete sandbox.cloud.instance.setup_started_at;
+sandbox.cloud.setup.message='Connecting the secure SSH tunnel.';
+assert.match(sandbox.setupFeedback(),/^Connecting the secure SSH tunnel/);
+sandbox.cloud.instance.id=43;assert.match(sandbox.setupFeedback(),/0s observed$/);
+sandbox.cloud.instance.status='stopped';assert.equal(sandbox.setupFeedback(),'');
+sandbox.cloud.instance.status='running';sandbox.cloud.operation.state='idle';sandbox.cloud.setup={state:'ready',message:'Ready'};
+assert.equal(sandbox.setupFeedback(),'');
+console.log('Existing setup detail and honest observed elapsed time; instance change resets and ready/stopped clears.');

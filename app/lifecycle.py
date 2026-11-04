@@ -50,6 +50,24 @@ def number(value, default=0.0):
         return default
 
 
+def provider_boot_message(row):
+    # Provider Docker lines describe individual layers, not a complete image.
+    # Return only controlled phase text, never raw host/provider diagnostics.
+    message = str(row.get('status_msg') or '').lower().splitlines()
+    latest = message[-1] if message else ''
+    if 'extracting' in latest or 'unpacking' in latest:
+        return 'Unpacking the GPU image layers.'
+    if 'verifying checksum' in latest:
+        return 'Verifying downloaded GPU image layers.'
+    if 'download complete' in latest:
+        return 'Downloading the GPU image; another layer finished.'
+    if 'pull complete' in latest:
+        return 'Assembling the GPU image layers and starting the container.'
+    if 'downloading' in latest or 'pulling' in latest:
+        return 'Downloading the prebuilt GPU image.'
+    return 'Waiting for the GPU container to start and SSH to become available.'
+
+
 class CloudManager:
     def __init__(self, app, get_queue, is_ready):
         self.app, self.get_queue, self.is_ready = app, get_queue, is_ready
@@ -190,8 +208,11 @@ class CloudManager:
                     await self.ensure_tunnel(row)
             elif status == 'stopped':
                 self.setup = {'state': 'waiting', 'message': 'The GPU is stopped. Storage still costs money.'}
-            elif not self.preparation or self.preparation.done():
-                self.setup = {'state': 'connecting', 'message': 'Waiting for your GPU to finish starting.'}
+            elif status == 'loading':
+                self.setup = {'state': 'connecting', 'message': provider_boot_message(row)}
+            if self.operation['state'] == 'creating':
+                started = number(row.get('start_date'))
+                if 0 < started <= time.time(): instance['setup_started_at'] = started
         else:
             self.setup = {'state': 'waiting', 'message': 'Create a GPU when you want to make videos.'}
         result = {key: value for key, value in (self.cached or {}).items() if key != 'other_instances'}

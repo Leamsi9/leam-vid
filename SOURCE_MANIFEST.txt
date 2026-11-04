@@ -252,3 +252,5 @@ scripts/start
 tests/test_cloud_start.py
 tests/test_offline_inventory.js
 tests/test_portability.py
+tests/test_provider_setup.py
+tests/test_setup_feedback.js

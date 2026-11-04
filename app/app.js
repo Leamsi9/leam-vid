@@ -101,11 +101,29 @@ function modelSettings() {
   if (!model.audio) $('audio').value = 'off';
   $('model-note').textContent = [model.note, model.audio ? 'Longer clips need more memory and take longer to render.' : 'This model produces silent video.'].filter(Boolean).join(' ');
 }
+let setupObservation = null;
+function setupFeedback() {
+  const instance = cloud && cloud.instance, setup = cloud && cloud.setup;
+  const preparing = instance && instance.status !== 'stopped' && (instance.status === 'loading' ||
+    cloud.operation && ['creating','starting'].includes(cloud.operation.state) ||
+    setup && ['connecting','installing'].includes(setup.state));
+  if (!preparing) { setupObservation = null; return ''; }
+  const id = String(instance.id);
+  if (!setupObservation || setupObservation.id !== id) setupObservation = {id, since:Date.now()};
+  const started = Number(instance.setup_started_at);
+  const knownStart = Number.isFinite(started) && started > 0 && started * 1000 <= Date.now();
+  const seconds = Math.max(0, Math.floor((Date.now() - (knownStart ? started * 1000 : setupObservation.since)) / 1000));
+  const elapsed = seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  const detail = setup && setup.message || cloud.operation && cloud.operation.message || 'Waiting for your GPU connection.';
+  return `${detail} · ${elapsed} ${knownStart ? 'elapsed' : 'observed'}`;
+}
 function updateButton() {
   // A running generation does not block another prompt or batch.
   button.disabled = posting || !available || !MODELS[$('model').value] || operationBusy();
   const count = Number($('batch').value);
   $('button-label').textContent = posting ? 'Adding to queue…' : available ? `Generate ${count === 1 ? 'video' : `${count} videos`}` : cloud && !cloud.instance ? 'Create a GPU above' : 'Preparing your GPU…';
+  const setup = setupFeedback();
+  if (!available && setup) $('availability').textContent = setup;
   $('settings').disabled = posting;
   $('specs').textContent = MODELS[$('model').value] ? describe(settings()) : 'Choose a supported model to begin.';
   updateModelRemovalButtons();
@@ -351,7 +369,7 @@ function renderCloud() {
   }
   if (cloudPosting && (!cloud || !cloud.operation || cloud.operation.state === 'idle')) message = 'Sending your request once…';
   if (mutationUncertain) message = 'Confirming the cloud request before allowing another change. It will not be sent again.';
-  $('cloud-message').textContent = message;
+  $('cloud-message').textContent = !mutationUncertain && !cloudPosting && setupFeedback() || message;
   $('create-gpu').hidden = Boolean(instance); $('create-gpu').disabled = !cloud || locked;
   $('start-gpu').hidden = !instance || instance.status !== 'stopped'; $('start-gpu').disabled = locked;
   $('stop-gpu').hidden = !instance || instance.status === 'stopped'; $('stop-gpu').disabled = stoppingLocked;

@@ -8,6 +8,7 @@ python3 gpu/validate_downloader.py
 python3 gpu/validate_prefetch.py
 python3 gpu/validate_queue.py
 node tests/test_offline_inventory.js
+node tests/test_setup_feedback.js
 node --check app/app.js
 node --check app/sw.js
 ```
