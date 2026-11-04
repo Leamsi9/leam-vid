@@ -7,6 +7,7 @@ RUN mkdir -p /workspace/wan-cloud/ComfyUI /workspace/wan-assets && cd /workspace
 COPY dependency-lock.txt /opt/private-video-dependency-lock.txt
 RUN python -c "from importlib.metadata import distributions;print('\n'.join(f'{d.metadata[\"Name\"]}=={d.version}' for d in distributions() if d.metadata['Name'].lower() in ('torch','torchvision','torchaudio','torchcodec')))" > /opt/torch-constraints.txt && python -m pip install --no-cache-dir -c /opt/torch-constraints.txt -c /opt/private-video-dependency-lock.txt -r /workspace/wan-cloud/ComfyUI/requirements.txt requests==2.32.5 && python -m pip list --format=freeze > /opt/private-video-runtime-lock.txt
 COPY assets/ /workspace/wan-assets/
+RUN mv /usr/sbin/sshd /usr/sbin/sshd.real && cp /workspace/wan-assets/sshd-with-hostkeys.sh /usr/sbin/sshd && chmod 755 /usr/sbin/sshd
 RUN mkdir -p /workspace/wan-cloud/ComfyUI/custom_nodes/PrivateVideoRuntime && cp /workspace/wan-assets/private-video-nodes.py /workspace/wan-cloud/ComfyUI/custom_nodes/PrivateVideoRuntime/__init__.py && chmod 700 /workspace/wan-assets/*.sh && ln -s /workspace/wan-assets/start-comfy-video.sh /workspace/wan-cloud/start-comfy-video.sh && touch /workspace/wan-cloud/runtime-models-v2.installed /workspace/wan-cloud/native-image-v1.installed
 COPY native_graphs.py /opt/private-video/native_graphs.py
 COPY workflows/ /opt/private-video/examples/

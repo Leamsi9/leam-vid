@@ -73,6 +73,25 @@ def provider_boot_message(row):
     return 'Waiting for the GPU container to start and SSH to become available.'
 
 
+def ssh_endpoint(row):
+    # Match Vast's ssh-url: use the mapped direct port when it is available.
+    ports = row.get('ports') or {}
+    mappings = ports.get('22/tcp') if isinstance(ports, dict) else None
+    candidates = []
+    if isinstance(mappings, list):
+        candidates.extend((row.get('public_ipaddr'), mapping.get('HostPort'))
+                          for mapping in mappings if isinstance(mapping, dict))
+    candidates.append((row.get('ssh_host'), row.get('ssh_port')))
+    for host, port in candidates:
+        try:
+            port = int(port)
+        except (TypeError, ValueError):
+            continue
+        if host and re.fullmatch(r'[A-Za-z0-9.-]+', str(host)) and 1 <= port <= 65535:
+            return str(host), port
+    raise CloudError('SSH access is not ready yet.', 503)
+
+
 class CloudManager:
     def __init__(self, app, get_queue, is_ready):
         self.app, self.get_queue, self.is_ready = app, get_queue, is_ready
@@ -235,9 +254,7 @@ class CloudManager:
         return supplied
 
     def ssh_args(self, row):
-        host, port = row.get('ssh_host'), row.get('ssh_port')
-        if not host or not re.fullmatch(r'[A-Za-z0-9.-]+', str(host)) or not 1 <= int(port or 0) <= 65535:
-            raise CloudError('SSH access is not ready yet.', 503)
+        host, port = ssh_endpoint(row)
         return ['-i', str(IDENTITY), '-p', str(int(port)), '-o', 'BatchMode=yes',
                 '-o', 'IdentitiesOnly=yes', '-o', 'StrictHostKeyChecking=accept-new',
                 '-o', 'ConnectTimeout=10'], f'root@{host}'
@@ -301,7 +318,7 @@ class CloudManager:
             row = None
             while time.monotonic() < deadline:
                 row = await self.api(instances.show_instance, id=identifier)
-                if row and row.get('actual_status') == 'running' and row.get('intended_status') not in {'stopped', 'exited'} and row.get('ssh_host') and row.get('ssh_port'):
+                if row and row.get('actual_status') == 'running' and row.get('intended_status') not in {'stopped', 'exited'}:
                     try:
                         self.setup = {'state': 'connecting', 'message': 'GPU running. Connecting securely through SSH.'}
                         await self.ssh(row, 'mkdir -p /workspace/wan-assets /workspace/wan-cloud')

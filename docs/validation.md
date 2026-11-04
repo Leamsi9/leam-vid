@@ -38,6 +38,10 @@ docker run --rm --network none --entrypoint /opt/conda/bin/python \
 The selected model subset is detected from the image examples; explicit fixture
 paths can also be passed to `validate_native.py`.
 Additional scripts check actual Turbo imports/bindings and SSH/compiler access.
+`validate_ssh_bootstrap.py` reproduces the observed pre-onstart missing-key
+failure, then checks first-invocation key generation, real key authentication,
+onstart idempotence and CPU HTTP readiness in a disposable network-disabled
+container. No owner keys are mounted and no model inference runs.
 `validate_turbowan_tokenizer.py` requires the small public tokenizer files at
 its documented path; it does not load model weights. CPU startup can be checked
 with `VIDEO_PREPARE_MODELS=0` and `start-comfy-video.sh --cpu`; production startup

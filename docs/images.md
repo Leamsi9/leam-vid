@@ -25,7 +25,11 @@ ABI and four official CUDA bindings, not an additional FastVideo environment.
 Only the small CUDA build toolchain is in the builder. The final image contains
 a host C/C++ compiler for runtime GPU helper compilation but no credentials,
 pre-generated SSH private host keys, prompts, media or model weights. SSH host
-keys are generated uniquely at startup. Do not mount an empty volume over
+keys are generated uniquely at startup. The first `/usr/sbin/sshd` invocation
+initializes host keys before executing the unchanged `/usr/sbin/sshd.real`
+binary, including when Vast starts SSH before onstart. The startup hook then
+validates SSH configuration and starts a daemon only when none is running; it
+preserves injected authorized public keys. Do not mount an empty volume over
 `/workspace`, which would hide the built software.
 
 `--models fasth3_trim,h3`, for example, limits the image's accepted/preloaded

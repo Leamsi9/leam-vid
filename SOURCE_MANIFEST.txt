@@ -33,6 +33,7 @@ gpu/assets/private_video_events.py
 gpu/assets/ready_queue.py
 gpu/assets/runner-turbowan.py
 gpu/assets/runtime-models.json
+gpu/assets/sshd-with-hostkeys.sh
 gpu/assets/start-comfy-video.sh
 gpu/dependency-lock.txt
 gpu/final-dependency-lock.txt
@@ -210,6 +211,7 @@ gpu/validate_media_io.py
 gpu/validate_native.py
 gpu/validate_prefetch.py
 gpu/validate_queue.py
+gpu/validate_ssh_bootstrap.py
 gpu/validate_tokenizer.py
 gpu/validate_turbowan_imports.py
 gpu/validate_turbowan_kernels.py
@@ -254,3 +256,4 @@ tests/test_offline_inventory.js
 tests/test_portability.py
 tests/test_provider_setup.py
 tests/test_setup_feedback.js
+tests/test_ssh_endpoint.py
