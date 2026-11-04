@@ -249,4 +249,6 @@ requirements.txt
 scripts/build-image.py
 scripts/install
 scripts/start
+tests/test_cloud_start.py
+tests/test_offline_inventory.js
 tests/test_portability.py

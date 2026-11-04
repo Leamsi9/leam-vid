@@ -1,7 +1,7 @@
 'use strict';
 // Only the application shell is cached. Prompts, API responses and media never are.
-const CACHE = 'leam-vid-shell-v2';
-const SHELL = ['/', '/app.js?v=2', '/style.css?v=2', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
+const CACHE = 'leam-vid-shell-v3';
+const SHELL = ['/', '/app.js?v=3', '/style.css?v=3', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });

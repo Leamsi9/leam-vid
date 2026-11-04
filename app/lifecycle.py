@@ -433,11 +433,17 @@ class CloudManager:
                         self.operation = {'state': 'starting', 'message': 'Starting your existing GPU.'}
                         if self.native.get('actual_status') != 'running' or self.native.get('intended_status') in {'stopped', 'exited'}:
                             try:
-                                await self.api(instances.start_instance, id=identifier)
+                                result = await self.api(instances.start_instance, id=identifier)
                             except Exception:
                                 self.operation = {'state': 'unknown', 'message': 'Checking the start request in Vast.ai.'}
                                 self.pending_action = ('start', identifier)
                                 raise CloudError('Starting was not confirmed. Refresh before trying again.', 503, True)
+                            if result.get('success') is False:
+                                self.operation = {'state': 'idle', 'message': ''}
+                                self.pending_action = None
+                                self.setup = {'state': 'waiting', 'message': 'Vast.ai rejected the start request. The GPU has not started.'}
+                                self.cached_at = 0
+                                raise CloudError('Vast.ai rejected the start request. The GPU has not started. Check its availability in Vast.ai before trying again.', 503)
                         self.preparation = asyncio.create_task(self.prepare(identifier, False))
                     else:
                         raise CloudError('Unknown GPU action.', 400)

@@ -520,6 +520,14 @@ async function refreshModels(force = false) {
       const response = await fetch('/api/models', {cache:'no-store'}), data = await response.json();
       if (version !== modelsVersion || !cloud.instance || String(cloud.instance.id) !== instance || modelsInstance !== instance) return;
       if (!response.ok || String(data.instance_id) !== instance || !Array.isArray(data.models)) throw new Error('Model list unavailable');
+      // An offline inventory is unknown, not evidence that model files vanished.
+      if (!data.models.length && (cloud.instance.status !== 'running' || data.message)) {
+        $('model-files').querySelector('summary').textContent = 'Model preparation and files · unavailable';
+        $('model-files-status').textContent = data.message || 'Model files cannot be read until the GPU connection is ready.';
+        $('model-free-space').textContent = '';
+        updateModelRemovalButtons();
+        return;
+      }
       const seen = new Set();
       let installedCount = 0, preparingCount = 0;
       for (const item of data.models) {
