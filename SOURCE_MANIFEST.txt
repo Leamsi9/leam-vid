@@ -251,9 +251,12 @@ requirements.txt
 scripts/build-image.py
 scripts/install
 scripts/start
+tests/test_active_jobs.js
 tests/test_cloud_start.py
 tests/test_offline_inventory.js
 tests/test_portability.py
 tests/test_provider_setup.py
 tests/test_setup_feedback.js
 tests/test_ssh_endpoint.py
+tests/test_video_replay.js
+tests/test_video_replay_browser.py

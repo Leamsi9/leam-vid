@@ -9,6 +9,9 @@ python3 gpu/validate_prefetch.py
 python3 gpu/validate_queue.py
 node tests/test_offline_inventory.js
 node tests/test_setup_feedback.js
+node tests/test_active_jobs.js
+node tests/test_video_replay.js
+python3 tests/test_video_replay_browser.py
 node --check app/app.js
 node --check app/sw.js
 ```
@@ -16,7 +19,11 @@ node --check app/sw.js
 Use the installed launcher virtual environment for tests requiring aiohttp and
 Vast's SDK (`.venv/bin/python` after `scripts/install`). The tests use public
 placeholder input, tiny temporary local HTTP files and in-memory boundaries.
-They do not rent a GPU or submit inference.
+They do not rent a GPU or submit inference. The replay browser check uses an
+isolated temporary Chrome profile and a tiny synthetic video served by a local
+fixture HTTP server; it never connects to the installed Studio or reads user
+media. It checks on-demand fetch/replay, stopped playback, expiry/delete/destroy
+cleanup and the explicit app-update notice.
 
 After building an image, run its real Comfy input validator without GPU access
 or networking. The validator uses the selected public workflow examples baked into the image:

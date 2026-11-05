@@ -10,10 +10,16 @@ through a private HTTPS connection such as Tailscale Serve.
 - Queue and batch jobs, view real progress, reuse a video's prompt, and manage
   videos, downloaded models, GPU lifecycle and Vast credit.
 
-Prompts and videos stay on the rented machine. The app streams videos and does
-not archive them on the laptop. Browser storage holds job identifiers and
-settings for reconnecting, never prompts or video bytes. Stop keeps files and
-continues disk billing; Destroy deletes the rental and its files.
+Prompts and saved videos stay on the rented machine. Opening a video loads it
+once into a temporary replay buffer in that browser tab. Replay and seeking reuse
+that buffer for up to 24 hours; GPU destruction, video deletion or changing
+instances clears it sooner. Stop retains the replay buffer and remote files,
+while storage remains billed. Closing/reloading the page or device memory
+pressure can lose the buffer earlier; physical RAM residency is browser managed.
+The app creates no persistent video cache or local archive. Its localStorage holds
+only unfinished job identifiers and settings for reconnecting, never prompts or
+video bytes. Finished job cards and their recovery records are removed; generated
+videos remain in the gallery. Destroy deletes the rental and its files.
 
 ## Install
 
