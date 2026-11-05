@@ -10,6 +10,7 @@ python3 gpu/validate_queue.py
 node tests/test_offline_inventory.js
 node tests/test_setup_feedback.js
 node tests/test_active_jobs.js
+node tests/test_job_recovery.js
 node tests/test_video_replay.js
 python3 tests/test_video_replay_browser.py
 node --check app/app.js

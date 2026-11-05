@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Public synthetic browser boundary check; never connects to installed Studio/GPU."""
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -85,7 +86,8 @@ class FixtureHandler(BaseHTTPRequestHandler):
             return self.reply({}, 404)
         body = (APP / name).read_bytes()
         if name == 'sw.js' and self.server.next_shell:
-            body = body.replace(b'SHELL_VERSION = 6', b'SHELL_VERSION = 7').replace(b'shell-v6', b'shell-v7').replace(b'v=6', b'v=7')
+            version = int(re.search(rb'SHELL_VERSION = (\d+)', body).group(1))
+            body = body.replace(f'SHELL_VERSION = {version}'.encode(), f'SHELL_VERSION = {version + 1}'.encode()).replace(f'shell-v{version}'.encode(), f'shell-v{version + 1}'.encode()).replace(f'v={version}'.encode(), f'v={version + 1}'.encode())
         kinds = {'html': 'text/html', 'js': 'text/javascript', 'css': 'text/css', 'svg': 'image/svg+xml', 'png': 'image/png', 'webmanifest': 'application/manifest+json'}
         return self.reply(body, kind=kinds[name.rsplit('.', 1)[-1]])
 
