@@ -1,7 +1,8 @@
 'use strict';
-// Only the application shell is cached. Prompts, API responses and media never are.
-const CACHE = 'leam-vid-shell-v5';
-const SHELL = ['/', '/app.js?v=5', '/style.css?v=5', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
+// Only static UI files enter this persistent shell cache. Prompts, APIs and media are excluded; replay buffers belong to the open page.
+const SHELL_VERSION = 6;
+const CACHE = 'leam-vid-shell-v6';
+const SHELL = ['/', '/app.js?v=6', '/style.css?v=6', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });
@@ -27,4 +28,8 @@ self.addEventListener('notificationclick', event => {
     const studio = windows.find(client => new URL(client.url).origin === self.location.origin);
     return studio ? studio.focus() : self.clients.openWindow('/');
   }));
+});
+
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'studio-version' && event.ports[0]) event.ports[0].postMessage({version:SHELL_VERSION});
 });

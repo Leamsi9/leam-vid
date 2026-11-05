@@ -3,6 +3,7 @@ const $ = id => document.getElementById(id);
 const promptInput = $('prompt'), button = $('generate');
 const JOBS_KEY = 'leam-vid-jobs-v1';
 const DEFAULT_MODEL = 'turbowan';
+const UI_VERSION = 6;
 const MODEL_NAMES = {
   fasth3_v2:'FastH3 V2 NVFP4',
   fasth3_trim:'FastH3 Trim NVFP4', turbowan:'TurboWan 2.1 1.3B', h3:'MiniMax H3 Turbo',
@@ -12,6 +13,72 @@ const TERMINAL = new Set(['complete', 'failed', 'not_ready', 'cancelled']);
 let jobs = [], cloud = null, available = false, posting = false, cloudPosting = false;
 let cloudFetch = null, cloudTimer = null, budgetTimer = null, budgetStamp = null;
 let cloudError = '', mutationUncertain = false, initialCloud = true, lastInstance = undefined;
+// Session-only replay buffers. Media never enters persistent browser storage.
+class VideoReplayCache {
+  constructor({fetcher = (...args) => fetch(...args), urlApi = URL, now = Date.now, schedule = (callback, delay) => setTimeout(callback, delay), cancel = timer => clearTimeout(timer), ttl = 24 * 60 * 60 * 1000} = {}) {
+    this.fetcher = fetcher; this.urlApi = urlApi; this.now = now;
+    this.schedule = schedule; this.cancel = cancel; this.ttl = ttl;
+    this.instance = null; this.entries = new Map();
+  }
+  key(instance, id) { return `${instance}:${id}`; }
+  setInstance(instance) {
+    const next = instance == null ? null : String(instance);
+    if (next !== this.instance) { this.clear('instance'); this.instance = next; }
+  }
+  discard(entry, reason) {
+    if (this.entries.get(entry.key) !== entry) return;
+    this.entries.delete(entry.key); entry.controller.abort(); this.cancel(entry.timer);
+    for (const release of entry.listeners) { try { release(reason); } catch (_) {} }
+    entry.listeners.clear();
+    if (entry.objectURL) this.urlApi.revokeObjectURL(entry.objectURL);
+    entry.objectURL = null;
+  }
+  remove(instance, id, reason = 'deleted') {
+    const entry = this.entries.get(this.key(instance, id));
+    if (entry) this.discard(entry, reason);
+  }
+  clear(reason = 'destroyed') {
+    for (const entry of [...this.entries.values()]) this.discard(entry, reason);
+  }
+  prune() {
+    for (const entry of [...this.entries.values()]) if (entry.objectURL && entry.expiresAt <= this.now()) this.discard(entry, 'expired');
+  }
+  peek(instance, id) {
+    this.prune();
+    if (String(instance) !== this.instance) return null;
+    const entry = this.entries.get(this.key(instance, id));
+    return entry && entry.objectURL ? entry : null;
+  }
+  load(instance, item, release) {
+    this.prune();
+    if (String(instance) !== this.instance) return Promise.reject(new DOMException('This GPU changed.', 'AbortError'));
+    const key = this.key(instance, item.id);
+    let entry = this.entries.get(key);
+    if (entry) { entry.listeners.add(release); return entry.promise; }
+    const controller = new AbortController();
+    entry = {key, controller, objectURL:null, expiresAt:0, timer:null, listeners:new Set([release]), promise:null};
+    this.entries.set(key, entry);
+    entry.promise = (async () => {
+      try {
+        const response = await this.fetcher(item.url, {cache:'no-store', credentials:'same-origin', signal:controller.signal});
+        if (response.status !== 200) throw new Error('The GPU video is unavailable.');
+        const blob = await response.blob();
+        if (this.entries.get(key) !== entry || controller.signal.aborted) throw new DOMException('Playback was cleared.', 'AbortError');
+        if (!blob.size) throw new Error('The GPU video is empty.');
+        entry.objectURL = this.urlApi.createObjectURL(blob);
+        entry.expiresAt = this.now() + this.ttl;
+        entry.timer = this.schedule(() => this.discard(entry, 'expired'), this.ttl);
+        return entry;
+      } catch (error) {
+        this.discard(entry, error.name === 'AbortError' ? 'cancelled' : 'failed');
+        throw error;
+      }
+    })();
+    return entry.promise;
+  }
+}
+const videoReplayCache = new VideoReplayCache();
+
 const sessions = new Map(), cards = new Map(), videoCards = new Map();
 const modelRows = new Map();
 let modelInstallation = new Map();
@@ -119,6 +186,7 @@ function setupFeedback() {
   return `${detail} · ${elapsed} ${knownStart ? 'elapsed' : 'observed'}`;
 }
 function updateButton() {
+  $('reload-studio').disabled = posting || cloudPosting;
   // A running generation does not block another prompt or batch.
   button.disabled = posting || !available || !MODELS[$('model').value] || operationBusy();
   const count = Number($('batch').value);
@@ -409,6 +477,7 @@ async function cloudAction(action) {
       cloudError = data.message || 'The cloud did not accept this change.';
       if (data.state === 'unknown') mutationUncertain = true;
     } else if (data.state === 'unknown') { mutationUncertain = true; cloudError = data.message || 'The cloud reply was uncertain. Checking your rental.'; }
+    if (action === 'destroy' && response.ok && data.state !== 'unknown' && (!data.operation || data.operation.state !== 'unknown')) videoReplayCache.clear('destroyed');
     $('destroy-confirm').hidden = true; $('stop-confirm').hidden = true;
   } catch (_) {
     mutationUncertain = true; cloudError = 'The cloud reply was interrupted. Checking the outcome before allowing another action.';
@@ -567,6 +636,7 @@ async function refreshModels(force = false) {
 }
 function clearGallery() {
   galleryVersion++;
+  videoReplayCache.setInstance(null);
   for (const video of $('gallery').querySelectorAll('video')) {
     video.pause(); video.removeAttribute('src'); video.removeAttribute('poster'); video.load();
   }
@@ -576,6 +646,7 @@ function clearGallery() {
   videoCards.clear(); $('gallery-count').textContent = '';
 }
 function removeVideoCard(id, card) {
+  videoReplayCache.remove(galleryInstance, id);
   const video = card.querySelector('video');
   video.pause(); video.removeAttribute('src'); video.removeAttribute('poster'); video.load();
   for (const image of card.querySelectorAll('img')) { image.removeAttribute('src'); image.removeAttribute('srcset'); }
@@ -584,22 +655,43 @@ function removeVideoCard(id, card) {
 }
 function gallerySummary() {
   $('gallery-count').textContent = `${videoCards.size} video${videoCards.size === 1 ? '' : 's'}`;
-  $('gallery-message').textContent = videoCards.size ? 'Newest first. Streamed from your GPU; no local archive is kept.' : 'Videos appear here when generation finishes. They stay on the GPU until you destroy it.';
+  $('gallery-message').textContent = videoCards.size ? 'Newest first. Opened videos replay from this tab for up to 24 hours, cleared on GPU destruction. Closing or reloading can lose this temporary cache; no persistent archive is kept.' : 'Videos appear here when generation finishes. They stay on the GPU until you destroy it.';
 }
 function attachPlaybackControls(card, item, instance) {
-  const video = card.querySelector('video');
-  const retry = document.createElement('button');
-  retry.type = 'button'; retry.className = 'text-button'; retry.textContent = 'Retry playback'; retry.hidden = true;
-  card.querySelector('.video-actions').prepend(retry);
+  const video = card.querySelector('video'), play = card.querySelector('.play-video');
+  const status = card.querySelector('.playback-status');
+  let loading = false;
   const alive = () => cloud && cloud.instance && String(cloud.instance.id) === instance && galleryInstance === instance && videoCards.get(item.id) === card && card.isConnected;
-  video.addEventListener('error', () => { if (alive()) retry.hidden = false; });
-  video.addEventListener('loadeddata', () => { retry.hidden = true; });
-  retry.addEventListener('click', () => {
-    if (!alive()) return;
-    // A user retry reconnects only this remote stream; it stores no media.
-    video.load();
+  const release = reason => {
+    video.pause(); video.removeAttribute('src'); video.load();
+    loading = false; play.disabled = false; play.hidden = false; play.textContent = 'Play video';
+    status.textContent = reason === 'expired' ? 'Replay cache expired. Play to load this video again.' : '';
+  };
+  const start = entry => {
+    if (!alive() || !entry.objectURL || videoReplayCache.peek(instance, item.id) !== entry) return;
+    if (video.getAttribute('src') !== entry.objectURL) { video.src = entry.objectURL; video.load(); }
+    loading = false; play.disabled = false; play.textContent = 'Play video';
+    // A second explicit tap can be required after an asynchronous mobile download.
     const playing = video.play();
-    if (playing) playing.catch(() => { if (alive()) retry.hidden = false; });
+    if (playing) playing.catch(() => {
+      if (!alive() || videoReplayCache.peek(instance, item.id) !== entry) return;
+      play.hidden = false; status.textContent = 'Loaded in this tab. Tap Play video to start.';
+    });
+  };
+  video.addEventListener('playing', () => { play.hidden = true; status.textContent = 'Cached in this tab for replay, up to 24 hours.'; });
+  video.addEventListener('error', () => { if (alive() && !loading) { play.hidden = false; status.textContent = 'Playback could not start. Tap Play video to try again.'; } });
+  play.addEventListener('click', () => {
+    if (!alive() || loading || cloudPosting || mutationUncertain || cloud.operation.state === 'destroying') return;
+    const cached = videoReplayCache.peek(instance, item.id);
+    if (cached) { start(cached); return; }
+    if (cloud.instance.status === 'stopped') { status.textContent = 'Start the GPU to load this video for the first time.'; return; }
+    loading = true; play.disabled = true; play.textContent = 'Loading…';
+    status.textContent = 'Loading this video once for replay in this tab…';
+    videoReplayCache.load(instance, item, release).then(start).catch(error => {
+      if (!alive() || error.name === 'AbortError') return;
+      loading = false; play.disabled = false; play.hidden = false; play.textContent = 'Play video';
+      status.textContent = 'The video could not load. Keep the GPU running and tap Play video to retry.';
+    });
   });
 }
 function attachDeleteControls(card, item, instance) {
@@ -687,10 +779,11 @@ async function refreshGallery(force = false) {
   if (!identityConfirmed()) return;
   const instance = cloud && cloud.instance ? String(cloud.instance.id) : null;
   if (galleryInstance !== instance) { clearGallery(); galleryInstance = instance; }
+  videoReplayCache.setInstance(instance);
   if (!instance) { $('gallery-message').textContent = 'Create a GPU to make videos. Destroying a rental deletes all videos on it.'; return; }
   if (cloud.instance.status === 'stopped') {
     for (const card of videoCards.values()) card.querySelector('video').pause();
-    $('gallery-message').textContent = 'Start the GPU to view its saved videos. They remain on its disk.';
+    $('gallery-message').textContent = 'GPU stopped. Videos already loaded in this tab can replay; start the GPU to load other videos.';
     return;
   }
   if (galleryFetch) {
@@ -725,20 +818,13 @@ async function refreshGallery(force = false) {
           gallery.insertBefore(card, gallery.children[position] || null);
           const video = card.querySelector('video');
           attachPlaybackControls(card, item, instance);
-          video.src = item.url;
-          video.load(); // preload stays none: no media is fetched until playback.
           attachPromptControls(card, item, instance); attachDeleteControls(card, item, instance);
-        } else {
-          const video = card.querySelector('video');
-          // A transient stream error must not persist until the whole page reloads.
-          // Healthy and currently playing players keep their source and position.
-          if (video.error) video.load();
         }
         card.querySelector('video').setAttribute('aria-label', item.filename || 'Generated video');
         card.querySelector('h3').textContent = item.filename || 'Generated video';
         const date = Number.isFinite(item.created_at) ? new Date(item.created_at * 1000).toLocaleString([], {dateStyle:'medium', timeStyle:'short'}) : '';
         const size = Number.isFinite(item.size_bytes) ? `${(item.size_bytes / 1048576).toFixed(1)} MB` : '';
-        card.querySelector('p').textContent = [date, size, 'On GPU only'].filter(Boolean).join(' · ');
+        card.querySelector('p').textContent = [date, size, 'Saved on GPU'].filter(Boolean).join(' · ');
         const elapsed = Number.isFinite(item.generation_seconds) && item.generation_seconds > 0 && item.generation_seconds <= 604800 ? Math.round(item.generation_seconds) : null;
         card.querySelector('.generation-time').textContent = elapsed === null ? 'Generation time unavailable' : `Generation time: ${Math.floor(elapsed / 60)}m ${elapsed % 60}s`;
         const before = gallery.children[position] || null;
@@ -829,9 +915,26 @@ window.addEventListener('beforeinstallprompt', event => { event.preventDefault()
 $('install').addEventListener('click', async () => { if (!installPrompt) return; const prompt = installPrompt; installPrompt = null; $('install').hidden = true; await prompt.prompt(); });
 window.addEventListener('appinstalled', () => { $('install').hidden = true; $('install-help').hidden = true; });
 if (window.matchMedia('(display-mode: standalone)').matches) $('install-help').hidden = true;
-if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('/sw.js').catch(() => { $('offline-note').textContent = 'Use Chrome’s menu → Add to Home screen for a shortcut. Keep the laptop and Tailscale connected.'; });
+function checkStudioUpdate() {
+  if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return;
+  const channel = new MessageChannel();
+  const timer = setTimeout(() => channel.port1.close(), 3000);
+  channel.port1.onmessage = event => {
+    clearTimeout(timer); channel.port1.close();
+    if (Number.isInteger(event.data && event.data.version) && event.data.version !== UI_VERSION) $('studio-update').hidden = false;
+  };
+  navigator.serviceWorker.controller.postMessage({type:'studio-version'}, [channel.port2]);
+  navigator.serviceWorker.getRegistration().then(registration => registration && registration.update()).catch(() => {});
+}
+$('reload-studio').addEventListener('click', () => { if (!posting && !cloudPosting) location.reload(); });
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  navigator.serviceWorker.addEventListener('controllerchange', checkStudioUpdate);
+  navigator.serviceWorker.register('/sw.js', {updateViaCache:'none'}).then(() => { checkStudioUpdate(); }).catch(() => { $('offline-note').textContent = 'Use Chrome’s menu → Add to Home screen for a shortcut. Keep the laptop and Tailscale connected.'; });
+}
+window.addEventListener('pagehide', event => { if (!event.persisted) videoReplayCache.clear('closed'); });
+
 window.addEventListener('online', () => { refreshCloud(true); refreshReadiness(); refreshGallery(); refreshModels(true).finally(flushModelNotices); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { updateNotificationControl(); refreshModels(true).finally(flushModelNotices); refreshCloud(Boolean(budgetStamp && Date.now() - budgetStamp.getTime() >= 300000)); refreshReadiness(); refreshGallery(); for (const job of jobs) if (active(job)) refreshJob(job); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { videoReplayCache.prune(); checkStudioUpdate(); updateNotificationControl(); refreshModels(true).finally(flushModelNotices); refreshCloud(Boolean(budgetStamp && Date.now() - budgetStamp.getTime() >= 300000)); refreshReadiness(); refreshGallery(); for (const job of jobs) if (active(job)) refreshJob(job); } });
 modelSettings();
 refreshCloud();
 setInterval(() => {

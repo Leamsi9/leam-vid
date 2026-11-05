@@ -11,8 +11,8 @@
   <title>leam-vid</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/style.css?v=5">
-  <script src="/app.js?v=5" defer></script>
+  <link rel="stylesheet" href="/style.css?v=6">
+  <script src="/app.js?v=6" defer></script>
 </head>
 <body>
   <main class="studio">
@@ -21,6 +21,7 @@
       <button id="install" class="quiet small" type="button" hidden>Add to phone <span aria-hidden="true">＋</span></button>
       <span id="private-label" class="private"><span></span> Private connection</span>
     </header>
+    <div id="studio-update" class="studio-update" role="status" hidden><span>An app update is ready. Reload when you are ready to apply it.</span><button id="reload-studio" class="text-button" type="button">Reload app</button></div>
     <section class="cloud" aria-label="GPU and budget">
       <div class="cloud-top">
         <div class="cloud-identity"><span class="eyebrow">YOUR GPU</span><h2 id="gpu-name">Connecting…</h2><p id="instance-info">Checking your rental</p></div>
@@ -95,9 +96,10 @@
       </section>
       <template id="video-template">
         <article class="remote-video">
-          <video controls playsinline preload="none"></video>
+          <div class="video-player"><video controls playsinline preload="none"></video><button class="play-video" type="button">Play video</button></div>
           <div class="video-info">
             <h3></h3><p></p>
+            <p class="playback-status" role="status"></p>
             <p class="generation-time" title="Elapsed execution time, excluding queue wait. Includes any first-use preparation and model downloads."></p>
             <div class="video-actions"><button class="text-button prompt-toggle" type="button" aria-expanded="false">Show prompt</button><button class="delete-video quiet danger small" type="button">Delete</button></div>
             <section class="delete-confirm" hidden aria-label="Delete this video">
@@ -115,7 +117,7 @@
       </template>
     </section>
     <footer><span>TurboWan · H3 Turbo</span><span>Laptop and Tailscale stay connected while you create.</span></footer>
-    <details id="install-help" class="install-help"><summary>Put this studio on your phone</summary><p>Open the private HTTPS studio address in Chrome on your phone, with Tailscale connected. Use Chrome’s menu → <strong>Add to Home screen</strong> → <strong>Install</strong>. Keep your laptop awake while using the studio.</p><p id="offline-note">The shortcut opens this same studio. Videos are streamed from the GPU; this app does not save a local video archive. GPU time starts when you create or start a rental; stopping keeps the disk and its storage charges.</p></details>
+    <details id="install-help" class="install-help"><summary>Put this studio on your phone</summary><p>Open the private HTTPS studio address in Chrome on your phone, with Tailscale connected. Use Chrome’s menu → <strong>Add to Home screen</strong> → <strong>Install</strong>. Keep your laptop awake while using the studio.</p><p id="offline-note">The shortcut opens this same studio. Videos you open are temporarily cached for replay in this tab for up to 24 hours, cleared on GPU destruction. Closing, reloading or device memory pressure can lose this cache earlier. This app creates no persistent video archive. GPU time starts when you create or start a rental; stopping keeps the disk and its storage charges.</p></details>
   </main>
 </body>
 </html>
