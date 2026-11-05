@@ -19,7 +19,9 @@ pressure can lose the buffer earlier; physical RAM residency is browser managed.
 The app creates no persistent video cache or local archive. Its localStorage holds
 only unfinished job identifiers and settings for reconnecting, never prompts or
 video bytes. Finished job cards and their recovery records are removed; generated
-videos remain in the gallery. Destroy deletes the rental and its files.
+videos remain in the gallery. Accepted Destroy deletes the rental and its files, and clears the prompt, composer
+settings, jobs, gallery and temporary replay buffers. App preferences and account
+budget remain. Rejected requests leave the draft and videos intact.
 
 ## Install
 
