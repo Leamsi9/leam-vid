@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 const promptInput = $('prompt'), button = $('generate');
 const JOBS_KEY = 'leam-vid-jobs-v1';
 const DEFAULT_MODEL = 'turbowan';
-const UI_VERSION = 8;
+const UI_VERSION = 9;
 const MODEL_NAMES = {
   fasth3_v2:'FastH3 V2 NVFP4',
   fasth3_trim:'FastH3 Trim NVFP4', turbowan:'TurboWan 2.1 1.3B', h3:'MiniMax H3 Turbo',
@@ -13,6 +13,7 @@ const TERMINAL = new Set(['complete', 'failed', 'not_ready', 'cancelled']);
 let jobs = [], cloud = null, available = false, posting = false, cloudPosting = false;
 let cloudFetch = null, cloudTimer = null, budgetTimer = null, budgetStamp = null;
 let cloudError = '', mutationUncertain = false, initialCloud = true, lastInstance = undefined;
+let instanceEpoch = 0;
 // Session-only replay buffers. Media never enters persistent browser storage.
 class VideoReplayCache {
   constructor({fetcher = (...args) => fetch(...args), urlApi = URL, now = Date.now, schedule = (callback, delay) => setTimeout(callback, delay), cancel = timer => clearTimeout(timer), ttl = 24 * 60 * 60 * 1000} = {}) {
@@ -145,7 +146,7 @@ function syncModelCatalog() {
   if ($('model').value !== previous) { available = false; refreshReadiness(); }
   for (const job of jobs) if (cards.has(job.id)) renderJob(job);
 }
-function modelSettings() {
+function modelSettings(reset = false) {
   if (!MODELS[$('model').value]) $('model').value = MODELS[DEFAULT_MODEL] ? DEFAULT_MODEL : Object.keys(MODEL_NAMES).find(id => MODELS[id]) || '';
   const model = MODELS[$('model').value];
   if (!model) {
@@ -153,7 +154,7 @@ function modelSettings() {
     $('model-note').textContent = 'Waiting for supported model settings from your private studio.';
     return;
   }
-  const previous = $('size').value, duration = Number($('duration').value);
+  const previous = reset ? model.defaultSize : $('size').value, duration = reset ? 5 : Number($('duration').value);
   $('size').disabled = false; $('duration').disabled = false;
   $('size').replaceChildren(...model.sizes.map(([width, height]) => {
     const option = document.createElement('option'); option.value = `${width}x${height}`; option.textContent = `${width} × ${height}`; return option;
@@ -166,13 +167,13 @@ function modelSettings() {
   $('duration').value = String(nearest);
   $('audio').disabled = !model.audio;
   $('audio').querySelector('option[value="on"]').disabled = !model.audio;
-  if (!model.audio) $('audio').value = 'off';
+  if (reset || !model.audio) $('audio').value = model.audio && reset ? 'on' : 'off';
   $('model-note').textContent = [model.note, model.audio ? 'Longer clips need more memory and take longer to render.' : 'This model produces silent video.'].filter(Boolean).join(' ');
 }
 let setupObservation = null;
 function setupFeedback() {
   const instance = cloud && cloud.instance, setup = cloud && cloud.setup;
-  const preparing = instance && instance.status !== 'stopped' && (instance.status === 'loading' ||
+  const preparing = instance && instance.status !== 'stopped' && cloud.operation.state !== 'destroying' && (instance.status === 'loading' ||
     cloud.operation && ['creating','starting'].includes(cloud.operation.state) ||
     setup && ['connecting','installing'].includes(setup.state));
   if (!preparing) { setupObservation = null; return ''; }
@@ -397,10 +398,35 @@ async function refreshJob(job, reconnect = false) {
     if (session.statusController === controller) { session.statusController = null; session.refreshing = false; }
   }
 }
+function resetInstanceUI() {
+  instanceEpoch++;
+  available = false; posting = false; setupObservation = null; cloudError = '';
+  for (const session of sessions.values()) {
+    clearTimeout(session.timer);
+    if (session.statusController) session.statusController.abort();
+    if (session.socket) { session.socket.onclose = null; session.socket.onmessage = null; session.socket.close(); }
+  }
+  sessions.clear(); jobs = []; saveJobs();
+  for (const card of cards.values()) card.remove();
+  cards.clear(); queueSummary(); $('queued-jobs-section').open = false;
+  clearGallery(); galleryInstance = null;
+  $('gallery-message').textContent = 'Create a GPU to make videos. Destroying a rental deletes all videos on it.';
+  clearModels(); $('model-files').open = false;
+  promptInput.value = ''; $('batch').value = '1';
+  $('model').value = MODELS[DEFAULT_MODEL] ? DEFAULT_MODEL : Object.keys(MODEL_NAMES).find(id => MODELS[id]) || '';
+  modelSettings(true);
+  $('destroy-confirm').hidden = true; $('stop-confirm').hidden = true;
+  $('connection-dot').classList.toggle('ready', false);
+  $('availability').textContent = 'Create a GPU above when you are ready.';
+  // Do not clear a new draft again when the accepted destruction settles.
+  lastInstance = null; initialCloud = false;
+  updateButton();
+}
 function reconcileInstance() {
   // Keep recovery records while a destroy result or cloud identity is uncertain.
-  if (!identityConfirmed()) return;
+  if (!identityConfirmed() || cloud.operation.state === 'destroying') return;
   const id = cloud.instance ? String(cloud.instance.id) : null;
+  if (!initialCloud && lastInstance !== null && id === null) resetInstanceUI();
   if (initialCloud || id !== lastInstance) {
     available = false;
     jobs = jobs.filter(job => id !== null && String(job.instance_id) === id && job.state !== 'lost' && active(job));
@@ -456,18 +482,20 @@ function renderCloud() {
   $('cloud-error').textContent = cloudError || cloud && cloud.error || ''; $('cloud-error').hidden = !$('cloud-error').textContent;
   $('budget-updated').textContent = budgetStamp ? `Budget checked ${budgetStamp.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} · updates after each video or 5 min.` : 'Budget updates after each video or every 5 minutes.';
   updateButton();
-  $('model-files').hidden = !instance;
+  $('model-files').hidden = !instance || cloud.operation.state === 'destroying';
   updateModelRemovalButtons();
 }
 async function refreshCloud(force = false) {
   // A completion must refresh credit even if a cached status call is in flight.
   if (cloudFetch) { await cloudFetch; if (force) return refreshCloud(true); return; }
+  const epoch = instanceEpoch;
   cloudFetch = (async () => {
     try {
       const response = await fetch(`/api/cloud${force ? '?refresh=1' : ''}`, {cache:'no-store'});
       if (!response.ok) throw new Error('Cloud status is unavailable.');
       const data = await response.json();
       if (!data.operation || !Object.prototype.hasOwnProperty.call(data, 'instance')) throw new Error('Cloud status is incomplete.');
+      if (epoch !== instanceEpoch) return;
       cloud = data;
       if (!data.error && (force || !budgetStamp)) budgetStamp = new Date();
       if (data.operation.state !== 'unknown') mutationUncertain = false;
@@ -478,6 +506,7 @@ async function refreshCloud(force = false) {
       if (tracking) cloudTimer = setTimeout(() => refreshCloud(false), 3000);
       if (force || !budgetTimer) { clearTimeout(budgetTimer); budgetTimer = setTimeout(() => { budgetTimer = null; refreshCloud(true); }, 300000); }
     } catch (_) {
+      if (epoch !== instanceEpoch) return;
       available = false;
       $('cloud-error').hidden = false; $('cloud-error').textContent = 'The laptop studio or cloud connection is unavailable. No new cloud action has been sent.';
       updateButton(); clearTimeout(cloudTimer); cloudTimer = setTimeout(() => refreshCloud(false), 10000);
@@ -499,7 +528,12 @@ async function cloudAction(action) {
       cloudError = data.message || 'The cloud did not accept this change.';
       if (data.state === 'unknown') mutationUncertain = true;
     } else if (data.state === 'unknown') { mutationUncertain = true; cloudError = data.message || 'The cloud reply was uncertain. Checking your rental.'; }
-    if (action === 'destroy' && response.ok && data.state !== 'unknown' && (!data.operation || data.operation.state !== 'unknown')) videoReplayCache.clear('destroyed');
+    if (action === 'destroy' && response.ok && data.state !== 'unknown' && (!data.operation || data.operation.state !== 'unknown')) {
+      resetInstanceUI();
+      if (data.operation && Object.prototype.hasOwnProperty.call(data, 'instance')) cloud = data;
+      else cloud = {...cloud, operation:{state:'destroying', message:'Destroying your GPU…'}};
+      renderCloud();
+    }
     $('destroy-confirm').hidden = true; $('stop-confirm').hidden = true;
   } catch (_) {
     mutationUncertain = true; cloudError = 'The cloud reply was interrupted. Checking the outcome before allowing another action.';
@@ -607,7 +641,7 @@ function modelRow(item, instance) {
   return row;
 }
 async function refreshModels(force = false) {
-  if (!cloud || !cloud.instance || !identityConfirmed() || (!force && !$('model-files').open)) return;
+  if (!cloud || !cloud.instance || !identityConfirmed() || (cloud.operation && cloud.operation.state === 'destroying') || (!force && !$('model-files').open)) return;
   const instance = String(cloud.instance.id);
   if (modelsFetch) { await modelsFetch; if (force || modelsInstance !== instance) return refreshModels(force); return; }
   modelsInstance = instance;
@@ -798,7 +832,7 @@ function attachPromptControls(card, item, instance) {
   });
 }
 async function refreshGallery(force = false) {
-  if (!identityConfirmed()) return;
+  if (!identityConfirmed() || cloud.operation.state === 'destroying') return;
   const instance = cloud && cloud.instance ? String(cloud.instance.id) : null;
   if (galleryInstance !== instance) { clearGallery(); galleryInstance = instance; }
   videoReplayCache.setInstance(instance);
@@ -865,6 +899,7 @@ async function refreshGallery(force = false) {
   try { await galleryFetch; } finally { galleryFetch = null; }
 }
 async function refreshReadiness() {
+  const epoch = instanceEpoch;
   const wasAvailable = available;
   if (!cloud || !cloud.instance || !MODELS[$('model').value] || cloud.instance.status === 'stopped' || operationBusy()) {
     available = false;
@@ -873,11 +908,11 @@ async function refreshReadiness() {
     const instance = cloud.instance.id, model = $('model').value;
     try {
       const response = await fetch(`/api/readiness?model=${encodeURIComponent(model)}`, {cache:'no-store'}); const data = await response.json();
-      if (!cloud.instance || String(cloud.instance.id) !== String(instance) || $('model').value !== model) return;
+      if (epoch !== instanceEpoch || !cloud.instance || String(cloud.instance.id) !== String(instance) || $('model').value !== model) return;
       available = Boolean(data.ready);
       $('availability').textContent = data.message || (available ? 'Your GPU is ready. You can queue multiple videos.' : data.missing ? `${data.missing} required model file${data.missing === 1 ? '' : 's'} not available yet.` : 'Preparing your model…');
     } catch (_) {
-      if (!cloud.instance || String(cloud.instance.id) !== String(instance) || $('model').value !== model) return;
+      if (epoch !== instanceEpoch || !cloud.instance || String(cloud.instance.id) !== String(instance) || $('model').value !== model) return;
       available = false; $('availability').textContent = 'Waiting for the private GPU connection…';
     }
   }
@@ -888,9 +923,10 @@ button.addEventListener('click', async () => {
   if (posting || !available || !MODELS[$('model').value] || operationBusy() || !cloud.instance) return;
   const prompt = promptInput.value; if (!prompt.trim()) { promptInput.focus(); return; }
   posting = true; updateButton();
+  const epoch = instanceEpoch;
   const config = settings(), count = Number($('batch').value), instance_id = cloud.instance.id;
   for (let index = 0; index < count; index++) {
-    if (!cloud.instance || String(cloud.instance.id) !== String(instance_id) || operationBusy()) break;
+    if (epoch !== instanceEpoch || !cloud.instance || String(cloud.instance.id) !== String(instance_id) || operationBusy()) break;
     const job = {id:uuid(), client_id:uuid(), instance_id, state:'posting', config};
     jobs.push(job); saveJobs(); renderJob(job); sessionFor(job);
     stage(job, 'Sending your scene', 'Submitting this variation once to your rented GPU.'); connectEvents(job);
@@ -901,16 +937,17 @@ button.addEventListener('click', async () => {
         try { data = await response.json(); } catch (_) {}
         if (!data || !data.state) data = {state:'failed', message:'The request was not accepted. Please refresh and try another prompt.'};
       } else data = await response.json();
-      if (!currentJob(job)) break;
+      if (epoch !== instanceEpoch || !currentJob(job)) break;
       applyState(job, data);
       if (data.state === 'not_ready') { available = false; break; }
     } catch (_) {
+      if (epoch !== instanceEpoch || !currentJob(job)) break;
       job.state = 'unknown'; saveJobs(); renderJob(job);
       stage(job, 'Checking video status', 'The reply was interrupted. Checking your GPU without submitting this request again.');
     }
     if (active(job)) refreshJob(job);
   }
-  posting = false; updateButton();
+  if (epoch === instanceEpoch) { posting = false; updateButton(); }
 });
 for (const id of ['duration','size','audio','batch']) $(id).addEventListener('change', updateButton);
 $('model').addEventListener('change', () => { available = false; modelSettings(); updateButton(); refreshReadiness(); });

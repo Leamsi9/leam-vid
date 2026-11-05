@@ -21,7 +21,7 @@ const timers=new Map();let timerID=0,click,budget=0,gallery=0;
 const context={Map,Set,String,Number,Boolean,Promise,AbortController,
   JOBS_KEY:'public-job-recovery',DEFAULT_MODEL:'turbowan',TERMINAL:new Set(['complete','failed','not_ready','cancelled']),
   jobs:[],cloud:{instance:{id:42,status:'running'},operation:{state:'idle'}},sessions:new Map(),cards:new Map(),
-  posting:false,available:true,MODELS:{turbowan:{}},promptInput:{value:'A public red ball fixture',focus:()=>{}},
+  posting:false,available:true,instanceEpoch:0,MODELS:{turbowan:{}},promptInput:{value:'A public red ball fixture',focus:()=>{}},
   $:id=>elements[id],button:{addEventListener:(event,handler)=>click=handler},
   localStorage:{setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
   uuid:(()=>{let ids=[JOB,CLIENT];return()=>ids.shift();})(),settings:()=>({model:'turbowan'}),operationBusy:()=>false,

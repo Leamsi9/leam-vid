@@ -24,7 +24,8 @@ They do not rent a GPU or submit inference. The replay browser check uses an
 isolated temporary Chrome profile and a tiny synthetic video served by a local
 fixture HTTP server; it never connects to the installed Studio or reads user
 media. It checks on-demand fetch/replay, stopped playback, expiry/delete/destroy
-cleanup and the explicit app-update notice.
+cleanup, accepted/rejected Destroy draft and settings reset, external destruction,
+late submission replies, fresh-draft retention and the explicit app-update notice.
 
 After building an image, run its real Comfy input validator without GPU access
 or networking. The validator uses the selected public workflow examples baked into the image:

@@ -1,8 +1,8 @@
 'use strict';
 // Only static UI files enter this persistent shell cache. Prompts, APIs and media are excluded; replay buffers belong to the open page.
-const SHELL_VERSION = 8;
-const CACHE = 'leam-vid-shell-v8';
-const SHELL = ['/', '/app.js?v=8', '/style.css?v=8', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
+const SHELL_VERSION = 9;
+const CACHE = 'leam-vid-shell-v9';
+const SHELL = ['/', '/app.js?v=9', '/style.css?v=9', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });
