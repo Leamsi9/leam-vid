@@ -57,5 +57,18 @@ const tick=()=>new Promise(setImmediate);
   assert.equal(context.sessions.get(JOB).refreshing,false);
   context.fetch=async()=>({ok:true,json:async()=>({state:'unknown'})});await context.refreshJob(next);
   assert.equal(next.state,'unknown');assert.equal(context.jobs.length,1);assert.equal(posts,1);assert.equal(timers.size,0);
-  console.log('Interrupted submit: existing completion recovered with one POST; hung status replaced on return; timeout unlocks retries; stale replies fenced; genuinely unknown requests retained. Public HTTP fixture only.');
+  // Owner can stop checking an unmatched local record without touching the GPU.
+  const galleryBefore=gallery,budgetBefore=budget;
+  context.fetch=()=>{throw Error('Dismissal must not send a request');};
+  context.stopCheckingJob(next);
+  assert.equal(context.jobs.length,0);assert.equal(storage.has(context.JOBS_KEY),false);
+  assert.equal(context.sessions.has(JOB),false);assert.equal(next.state,'unknown','Dismissal must not claim cancellation or failure');
+  assert.equal(gallery,galleryBefore);assert.equal(budget,budgetBefore);assert.equal(posts,1);
+  for(const state of ['queued','running']){
+    const activeJob={...next,state};context.jobs=[activeJob];context.saveJobs();
+    context.stopCheckingJob(activeJob);
+    assert.equal(context.jobs[0],activeJob,'An active or queued job cannot be dismissed as uncertain');
+    assert.equal(JSON.parse(storage.get(context.JOBS_KEY))[0].state,state);
+  }
+  console.log('Interrupted submit: existing completion recovered with one POST; hung status replaced on return; timeout unlocks retries; stale replies fenced; unknown retained until explicit local dismissal; active/queued cannot dismiss. Public HTTP fixture only.');
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>{if(releaseFirst)releaseFirst();server.closeAllConnections();server.close();});
