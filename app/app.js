@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 const promptInput = $('prompt'), button = $('generate');
 const JOBS_KEY = 'leam-vid-jobs-v1';
 const DEFAULT_MODEL = 'turbowan';
-const UI_VERSION = 7;
+const UI_VERSION = 8;
 const MODEL_NAMES = {
   fasth3_v2:'FastH3 V2 NVFP4',
   fasth3_trim:'FastH3 Trim NVFP4', turbowan:'TurboWan 2.1 1.3B', h3:'MiniMax H3 Turbo',
@@ -202,6 +202,7 @@ function cardFor(job) {
   if (cards.has(job.id)) return cards.get(job.id);
   const card = $('job-template').content.firstElementChild.cloneNode(true);
   card.querySelector('.cancel-job').addEventListener('click', () => cancelJob(job));
+  card.querySelector('.stop-checking').addEventListener('click', () => stopCheckingJob(job));
   cards.set(job.id, card); placeJob(job, card);
   return card;
 }
@@ -233,6 +234,7 @@ function renderJob(job) {
   const cancel = card.querySelector('.cancel-job');
   cancel.hidden = job.state !== 'queued'; cancel.disabled = cancelling;
   cancel.textContent = cancelling ? 'Cancelling…' : 'Cancel queued video';
+  card.querySelector('.stop-checking').hidden = job.state !== 'unknown';
   queueSummary();
 }
 function stage(job, title, detail, step = null, max = null) {
@@ -316,13 +318,7 @@ function applyState(job, data) {
   job.state = data.state;
   if (data.config) job.config = data.config;
   if (TERMINAL.has(job.state)) {
-    if (session.statusController) session.statusController.abort();
-    finishConnection(job);
-    cards.get(job.id)?.remove(); cards.delete(job.id); sessions.delete(job.id);
-    jobs = jobs.filter(item => item !== job);
-    saveJobs();
-    for (const remaining of jobs) renderJob(remaining);
-    queueSummary(); updateButton();
+    removeJobRecord(job);
     if (['complete','failed','cancelled'].includes(job.state)) {
       refreshCloud(true); refreshGallery(true); refreshModels(true);
     }
@@ -339,8 +335,23 @@ function applyState(job, data) {
     } else if (prep.stage === 'preparing') stage(job, 'Preparing video software', 'Installing the model’s software on your GPU. Sampling has not started.');
   }
   else if (data.state === 'running' && !session.lastStep && !session.sawNode) stage(job, 'Creating your video', 'Loading models or preparing your scene. Live steps appear when sampling starts.');
-  else if (data.state === 'unknown') stage(job, 'Checking video status', 'Checking whether your GPU received or completed this request. It will not be submitted again.');
+  else if (data.state === 'unknown') stage(job, 'Request not confirmed', 'No matching job has been confirmed on your GPU. Check the videos below. Stop checking removes only this card; it does not cancel jobs or delete videos.');
   updateButton();
+}
+function removeJobRecord(job) {
+  const session = sessions.get(job.id);
+  if (session && session.statusController) session.statusController.abort();
+  finishConnection(job);
+  cards.get(job.id)?.remove(); cards.delete(job.id); sessions.delete(job.id);
+  jobs = jobs.filter(item => item !== job);
+  saveJobs();
+  for (const remaining of jobs) renderJob(remaining);
+  queueSummary(); updateButton();
+}
+function stopCheckingJob(job) {
+  // This dismisses only an uncertain local record. It sends no GPU request.
+  if (!currentJob(job) || job.state !== 'unknown') return;
+  removeJobRecord(job);
 }
 async function cancelJob(job) {
   if (!currentJob(job) || job.state !== 'queued') return;
