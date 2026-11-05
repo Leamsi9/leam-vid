@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 const promptInput = $('prompt'), button = $('generate');
 const JOBS_KEY = 'leam-vid-jobs-v1';
 const DEFAULT_MODEL = 'turbowan';
-const UI_VERSION = 6;
+const UI_VERSION = 7;
 const MODEL_NAMES = {
   fasth3_v2:'FastH3 V2 NVFP4',
   fasth3_trim:'FastH3 Trim NVFP4', turbowan:'TurboWan 2.1 1.3B', h3:'MiniMax H3 Turbo',
@@ -227,7 +227,7 @@ function renderJob(job) {
   card.dataset.state = job.state; placeJob(job, card);
   card.querySelector('.job-title').textContent = `Video ${position}`;
   card.querySelector('.job-config').textContent = describe(job.config);
-  const labels = {posting:'Sending', queued:'Waiting', running:'Running', unknown:'Confirming', disconnected:'Reconnecting'};
+  const labels = {posting:'Sending', queued:'Waiting', running:'Running', unknown:'Checking result', disconnected:'Reconnecting'};
   card.querySelector('.job-state').textContent = labels[job.state] || 'Waiting';
   const cancelling = Boolean(sessions.get(job.id) && sessions.get(job.id).cancelling);
   const cancel = card.querySelector('.cancel-job');
@@ -245,7 +245,7 @@ function stage(job, title, detail, step = null, max = null) {
   progress.hidden = false;
 }
 function sessionFor(job) {
-  if (!sessions.has(job.id)) sessions.set(job.id, {socket:null, timer:null, lastStep:null, sawNode:false, currentNode:null, refreshing:false, cancelling:false});
+  if (!sessions.has(job.id)) sessions.set(job.id, {socket:null, timer:null, lastStep:null, sawNode:false, currentNode:null, refreshing:false, cancelling:false, statusController:null});
   return sessions.get(job.id);
 }
 function finishConnection(job) {
@@ -316,6 +316,7 @@ function applyState(job, data) {
   job.state = data.state;
   if (data.config) job.config = data.config;
   if (TERMINAL.has(job.state)) {
+    if (session.statusController) session.statusController.abort();
     finishConnection(job);
     cards.get(job.id)?.remove(); cards.delete(job.id); sessions.delete(job.id);
     jobs = jobs.filter(item => item !== job);
@@ -338,7 +339,7 @@ function applyState(job, data) {
     } else if (prep.stage === 'preparing') stage(job, 'Preparing video software', 'Installing the model’s software on your GPU. Sampling has not started.');
   }
   else if (data.state === 'running' && !session.lastStep && !session.sawNode) stage(job, 'Creating your video', 'Loading models or preparing your scene. Live steps appear when sampling starts.');
-  else if (data.state === 'unknown') stage(job, 'Confirming this request', 'Checking the GPU. This request will not be sent again; you can queue a different video.');
+  else if (data.state === 'unknown') stage(job, 'Checking video status', 'Checking whether your GPU received or completed this request. It will not be submitted again.');
   updateButton();
 }
 async function cancelJob(job) {
@@ -364,17 +365,26 @@ async function cancelJob(job) {
     if (currentJob(job)) { renderJob(job); if (active(job)) refreshJob(job); }
   }
 }
-async function refreshJob(job) {
-  if (!currentJob(job)) return;
-  const session = sessionFor(job); if (session.refreshing || posting && job.state === 'posting') return;
-  session.refreshing = true;
+async function refreshJob(job, reconnect = false) {
+  if (!currentJob(job) || posting && job.state === 'posting') return;
+  const session = sessionFor(job);
+  if (session.refreshing && !reconnect) return;
+  if (session.statusController) session.statusController.abort();
+  const controller = new AbortController();
+  session.statusController = controller; session.refreshing = true;
+  const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}?model=${encodeURIComponent(job.config && job.config.model || DEFAULT_MODEL)}`, {cache:'no-store'});
+    const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}?model=${encodeURIComponent(job.config && job.config.model || DEFAULT_MODEL)}`, {cache:'no-store', signal:controller.signal});
     if (!response.ok) throw new Error('Connection unavailable');
-    const data = await response.json(); if (!currentJob(job)) return;
+    const data = await response.json();
+    if (!currentJob(job) || session.statusController !== controller || controller.signal.aborted) return;
     applyState(job, data);
-  } catch (_) { if (active(job)) stage(job, 'Reconnecting to your GPU', 'Your video may still be running. It will not be submitted again.'); }
-  finally { session.refreshing = false; }
+  } catch (_) {
+    if (currentJob(job) && active(job) && session.statusController === controller) stage(job, 'Reconnecting to your GPU', 'Checking this request again. It will not be submitted again.');
+  } finally {
+    clearTimeout(timeout);
+    if (session.statusController === controller) { session.statusController = null; session.refreshing = false; }
+  }
 }
 function reconcileInstance() {
   // Keep recovery records while a destroy result or cloud identity is uncertain.
@@ -386,6 +396,7 @@ function reconcileInstance() {
     const retained = new Set(jobs.map(job => job.id));
     for (const [jobId, session] of sessions) if (!retained.has(jobId)) {
       clearTimeout(session.timer);
+      if (session.statusController) session.statusController.abort();
       if (session.socket) { session.socket.onclose = null; session.socket.onmessage = null; session.socket.close(); }
       sessions.delete(jobId);
     }
@@ -884,7 +895,7 @@ button.addEventListener('click', async () => {
       if (data.state === 'not_ready') { available = false; break; }
     } catch (_) {
       job.state = 'unknown'; saveJobs(); renderJob(job);
-      stage(job, 'Confirming this request', 'The reply was interrupted. This request will not be sent again.');
+      stage(job, 'Checking video status', 'The reply was interrupted. Checking your GPU without submitting this request again.');
     }
     if (active(job)) refreshJob(job);
   }
@@ -932,9 +943,10 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
   navigator.serviceWorker.register('/sw.js', {updateViaCache:'none'}).then(() => { checkStudioUpdate(); }).catch(() => { $('offline-note').textContent = 'Use Chrome’s menu → Add to Home screen for a shortcut. Keep the laptop and Tailscale connected.'; });
 }
 window.addEventListener('pagehide', event => { if (!event.persisted) videoReplayCache.clear('closed'); });
+window.addEventListener('pageshow', event => { if (event.persisted) for (const job of jobs) if (active(job)) refreshJob(job, true); });
 
-window.addEventListener('online', () => { refreshCloud(true); refreshReadiness(); refreshGallery(); refreshModels(true).finally(flushModelNotices); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { videoReplayCache.prune(); checkStudioUpdate(); updateNotificationControl(); refreshModels(true).finally(flushModelNotices); refreshCloud(Boolean(budgetStamp && Date.now() - budgetStamp.getTime() >= 300000)); refreshReadiness(); refreshGallery(); for (const job of jobs) if (active(job)) refreshJob(job); } });
+window.addEventListener('online', () => { refreshCloud(true); refreshReadiness(); refreshGallery(); refreshModels(true).finally(flushModelNotices); for (const job of jobs) if (active(job)) refreshJob(job, true); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { videoReplayCache.prune(); checkStudioUpdate(); updateNotificationControl(); refreshModels(true).finally(flushModelNotices); refreshCloud(Boolean(budgetStamp && Date.now() - budgetStamp.getTime() >= 300000)); refreshReadiness(); refreshGallery(); for (const job of jobs) if (active(job)) refreshJob(job, true); } });
 modelSettings();
 refreshCloud();
 setInterval(() => {
